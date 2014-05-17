@@ -1,6 +1,6 @@
 <?php
 /*
-Plugin Name: Gravity Forms: Update Post
+Plugin Name: Gravity Forms: Post Updates
 Plugin URI: http://bitbucket.org/jupitercow/gravity-forms-update-post
 Description: Allow Gravity Forms to update post Content and the meta data associated with it. Based off the original version by Kevin Miller, this version removed delete functionality, fixed a few bugs, and adds support for file uploads.
 Version: 1.2
