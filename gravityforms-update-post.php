@@ -3,7 +3,7 @@
 Plugin Name: Gravity Forms: Post Updates
 Plugin URI: http://bitbucket.org/jupitercow/gravity-forms-update-post
 Description: Allow Gravity Forms to update post Content and the meta data associated with it. Based off the original version by Kevin Miller, this version removed delete functionality, fixed a few bugs, and adds support for file uploads.
-Version: 1.2
+Version: 1.2.1
 Author: Jake Snyder
 Author URI: http://Jupitercow.com/
 Contributer: p51labs
@@ -763,7 +763,7 @@ class gform_update_post
 				{
 					$multi_fields = array('multiselect', 'checkbox', 'list');
 					if ( in_array($field['inputType'], $multi_fields) )
-						$value = $meta[ $field['postCustomFieldName'] ];
+						$value = apply_filters( self::$prefix . '_multi_fields', $meta[ $field['postCustomFieldName'] ] );
 					else
 						$value = end($meta[ $field['postCustomFieldName'] ]);
 						
