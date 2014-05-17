@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.2 - 2014-02-13
+
+- Added the shortcode support to Gravity Forms main shortcode.
 
 ## 1.1 - 2014-02-14
 

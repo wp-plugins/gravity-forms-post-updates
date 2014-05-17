@@ -3,8 +3,8 @@ Contributors: jcow
 Donate link: https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=jacobsnyder%40gmail%2ecom&lc=US&item_name=Jacob%20Snyder&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donate_SM%2egif%3aNonHosted
 Tags: gravity forms, update posts, frontend, front end
 Requires at least: 3.6.1
-Tested up to: 3.8.1
-Stable tag: 1.1
+Tested up to: 3.9.1
+Stable tag: 1.2
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -15,7 +15,6 @@ Allows you to use Gravity Forms to update any post on the front end.
 Allows you to use Gravity Forms to update any post on the front end. If you use the "Gravity Forms + Custom Post Types", you can even update custom post types and use custom taxonomies.
 
 This started as an update to the Gravity Forms Update Post plugin developed by p51labs here.
-
 It has evolved into a completely rewritten plugin that streamlines the system, adds some new support for more fields, and adds more interfaces and filters.
 
 = Compatibility =
@@ -35,8 +34,16 @@ So it isn't very compatible. Plain and simple, you will have to change something
 *   Completely removed the ability to delete posts.
 *   There are some filters to customize things now.
 *   Adds non-query-var template method to setup a form.
-*   Adds a really basic shortcode to setup a form (Ideally when Gravity Forms updates to include the updates to shortcode in 3.6, this will get better).
-*   A few notes about the sections above:
+*   Adds a really basic shortcode to setup a form (UPDATE: This is still supported, but it is better to use the addition, below, to the gravityform shortcode).
+*   Adds an additional attribute to the gravityform shortcode: "update"
+
+= SHORTCODE =
+
+`[gravityforms id="1" update] // Loads current post for editing`
+
+`[gravityforms id="1" update="34"] // Loads post where ID=34 for editing`
+
+We worked with Rocketgenius, makers of Gravity Forms, to get a small upgrade added that allows us to extend their shortcode, so now you can simply add the "update" attribute to the normal "gravityform" shortcode. If you only add "update", it will load the current post in to update. If you add an integer to the update attribute, it will use that to load a post by its ID.
 
 == Installation ==
 
@@ -69,13 +76,9 @@ Image fields are only supported if they are the "Featured Image". Otherwise you 
 
 == Changelog ==
 
-= 1.1 - 2014-02-14 =
+= 1.2 - 2014-02-13 =
 
-*	Finished the file upload upgrades with featured image deletion and hiding upload input when image exists until it is deleted.
-
-= 1.0.1 - 2014-02-14 =
-
-*	Updated file upload fields to hide input when a file exists and show it if the file is deleted.
+* Added the shortcode support to Gravity Forms main shortcode.
 
 = 1.0.0 - 2014-02-13 =
 

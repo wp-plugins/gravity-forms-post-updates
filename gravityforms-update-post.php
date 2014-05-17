@@ -1,18 +1,16 @@
 <?php
 /*
-Plugin Name: Gravity Forms: Update Post 2
+Plugin Name: Gravity Forms: Update Post
 Plugin URI: http://bitbucket.org/jupitercow/gravity-forms-update-post
 Description: Allow Gravity Forms to update post Content and the meta data associated with it. Based off the original version by Kevin Miller, this version removed delete functionality, fixed a few bugs, and adds support for file uploads.
-Version: 1.1.0
+Version: 1.2
 Author: Jake Snyder
 Author URI: http://Jupitercow.com/
-Contributer: Kevin Miller
+Contributer: p51labs
 Contributer URI: http://p51labs.com/
-Contributer: Ron Sparks
-Contributer URI: http://ronsparks.net/
 
 ------------------------------------------------------------------------
-Copyright 2013 Jupitercow, Inc.
+Copyright 2014 Jupitercow, Inc.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -31,35 +29,47 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 if (! class_exists('gform_update_post') ) :
 
+add_action( 'init', array('gform_update_post', 'init') );
+
 class gform_update_post
 {
 	/**
-	 * The plugin name
+	 * Class prefix
+	 *
+	 * @since 	1.2
+	 * @var 	string
 	 */
-	public static $name = 'Gravity Forms: Update Post';
+	const PREFIX = __CLASS__;
 
 	/**
-	 * The class prefix
+	 * Current version of plugin
+	 *
+	 * @since 	1.2
+	 * @var 	string
 	 */
-	public static $prefix = __CLASS__;
+	const VERSION = '1.2';
 
 	/**
-	 * The plugin version
+	 * Settings
+	 *
+	 * @since 	0.6.1
+	 * @var 	string
 	 */
-	public static $version = '1.1.0';
-
-	/**
-	 * General settings
-	 */
-	private static $settings;
+	public static $settings = array();
 
 	/**
 	 * Holds the post to update
+	 *
+	 * @since 	0.6.1
+	 * @var 	string
 	 */
 	private static $post;
 
 	/**
 	 * Holds the form info
+	 *
+	 * @since 	0.6.1
+	 * @var 	string
 	 */
 	private static $form;
 
@@ -73,7 +83,49 @@ class gform_update_post
 	 */
 	public static function init()
 	{
-		add_action( 'init', array(__CLASS__, 'setup') );
+		self::setup();
+
+		// actions
+		add_action( 'admin_init',                  array(__CLASS__, 'admin_init') );
+
+		// filters
+		add_filter( 'shortcode_atts_gravityforms', array(__CLASS__, 'gf_shortcode_atts'), 10, 3 );
+	}
+
+	/**
+	 * Admin init
+	 *
+	 * @author  Jake Snyder
+	 * @date	1.2
+	 */
+	public static function admin_init()
+	{
+		if (! self::test_requirements() )
+		{
+			$plugin_data = get_plugin_data(__FILE__);
+			self::$settings['name'] = $plugin_data['Name'];
+			add_action( 'admin_notices', array(__CLASS__, 'admin_warnings'), 20);
+		}
+	}
+
+	/**
+	 * Add support for the new update attribute in the shortcode
+	 *
+	 * @author  Jake Snyder
+	 * @since	1.2
+	 */
+	public static function gf_shortcode_atts( $out, $pairs, $atts )
+	{
+		if ( isset($atts['update']) )
+		{
+			do_action( self::PREFIX . '/setup_form', $atts['update'] );
+		}
+		elseif ( in_array('update', $atts) )
+		{
+			do_action( self::PREFIX . '/setup_form' );
+		}
+
+		return $out;
 	}
 
 	/**
@@ -88,20 +140,21 @@ class gform_update_post
 	{
 		if ( self::test_requirements() )
 		{
-			add_filter( self::$prefix . '/settings/get_path', array(__CLASS__, 'helpers_get_path'), 1 );
-			add_filter( self::$prefix . '/settings/get_dir',  array(__CLASS__, 'helpers_get_dir'), 1 );
+			add_filter( self::PREFIX . '/settings/get_path', array(__CLASS__, 'helpers_get_path'), 1 );
+			add_filter( self::PREFIX . '/settings/get_dir',  array(__CLASS__, 'helpers_get_dir'), 1 );
 
 			self::$settings = array(
-				'request_id'     => apply_filters( self::$prefix . '/request_id', 'gform_post_id' ),
-				'nonce_delete'   => self::$prefix . '_delete_upload',
-				'nonce_update'   => self::$prefix . '_update_post',
+				'request_id'     => apply_filters( self::PREFIX . '/request_id', 'gform_post_id' ),
+				'nonce_delete'   => self::PREFIX . '_delete_upload',
+				'nonce_update'   => self::PREFIX . '_update_post',
 				'file_width'     => 46,
 				'file_height'    => 60,
-				'path'           => apply_filters( self::$prefix . '/settings/get_path', __FILE__ ),
-				'dir'            => apply_filters( self::$prefix . '/settings/get_dir',  __FILE__ ),
+				'path'           => apply_filters( self::PREFIX . '/settings/get_path', __FILE__ ),
+				'dir'            => apply_filters( self::PREFIX . '/settings/get_dir',  __FILE__ ),
 				'unique_field'   => 'field_unique_custom_meta_value'
 			);
-			self::$settings  = array_merge( self::$settings, apply_filters( self::$prefix . '/settings', self::$settings ) );
+
+			self::$settings  = array_merge( self::$settings, apply_filters( self::PREFIX . '/settings', self::$settings ) );
 
 			// Adds support for unique custom fields
 			add_action( 'gform_field_standard_settings', array(__CLASS__, 'gform_field_standard_settings'), 10, 2 );
@@ -115,25 +168,21 @@ class gform_update_post
 			add_filter( 'gform_field_validation',        array(__CLASS__, 'required_upload_field_validation'), 10, 4 );
 
 			// Adds a really basic shortcode to set the plugin in action
-			add_shortcode( self::$prefix,                array(__CLASS__, 'shortcode') );
+			add_shortcode( self::PREFIX,                array(__CLASS__, 'shortcode') );
 
 			// Add an action to set up the form
-			add_action( self::$prefix . '/setup_form',   array(__CLASS__, 'setup_form') );
+			add_action( self::PREFIX . '/setup_form',   array(__CLASS__, 'setup_form') );
 
 			// Add an action to create a link
-			add_action( self::$prefix . '/edit_link',    array(__CLASS__, 'edit_link') );
+			add_action( self::PREFIX . '/edit_link',    array(__CLASS__, 'edit_link') );
 
 			// Ajax file delete
-			add_action( 'wp_ajax_' . self::$prefix . '_delete_upload', array(__CLASS__, 'ajax_delete_upload') );
-			if ( apply_filters( self::$prefix . '/public_file_delete', true ) )
-				add_action( 'wp_ajax_nopriv_' . self::$prefix . '_delete_upload', array(__CLASS__, 'ajax_delete_upload') );
+			add_action( 'wp_ajax_' . self::PREFIX . '_delete_upload', array(__CLASS__, 'ajax_delete_upload') );
+			if ( apply_filters( self::PREFIX . '/public_file_delete', true ) )
+				add_action( 'wp_ajax_nopriv_' . self::PREFIX . '_delete_upload', array(__CLASS__, 'ajax_delete_upload') );
 
 			// Set up from url query vars and process submitted forms.
 			self::process_request();
-		}
-		else
-		{
-			add_action( 'admin_notices', array(__CLASS__, 'admin_warnings'), 20);
 		}
 	}
 
@@ -193,7 +242,7 @@ class gform_update_post
 	 */
 	public static function request_id()
 	{
-		return apply_filters( self::$prefix . '/request_id', self::$settings['request_id'] );
+		return apply_filters( self::PREFIX . '/request_id', self::$settings['request_id'] );
 	}
 
 	/**
@@ -224,7 +273,7 @@ class gform_update_post
 	 */
     public static function admin_warnings()
     {
-		$message = sprintf( __('<strong>%s</strong> requires Gravity Forms to be installed. Please <a href="http://www.gravityforms.com/">download the latest version</a> to use this plugin.', self::$prefix), self::$name );
+		$message = sprintf( __('<strong>%s</strong> requires Gravity Forms to be installed. Please <a href="http://www.gravityforms.com/">download the latest version</a> to use this plugin.', self::PREFIX), self::$settings['name'] );
 		?>
 		<div class="error">
 			<p>
@@ -237,17 +286,17 @@ class gform_update_post
 	public static function scripts_and_styles()
 	{
 		// register acf scripts
-		wp_register_script( self::$prefix, self::$settings['dir'] . 'js/scripts.js', array('jquery'), self::$version );
+		wp_register_script( self::PREFIX, self::$settings['dir'] . 'js/scripts.js', array('jquery'), self::VERSION );
 		$args = array(
 			'url'                  => admin_url( 'admin-ajax.php' ),
-			'action'               => self::$prefix . '_delete_upload',
-			'prefix'               => self::$prefix,
+			'action'               => self::PREFIX . '_delete_upload',
+			'prefix'               => self::PREFIX,
 			'spinner'              => admin_url( 'images/loading.gif' ),
 			'nonce'                => wp_create_nonce( self::$settings['nonce_delete'] )
 		);
-		wp_localize_script( self::$prefix, 'gform_up', $args );
+		wp_localize_script( self::PREFIX, 'gform_up', $args );
 		wp_enqueue_script( array(
-			self::$prefix
+			self::PREFIX
 		) );
 	}
 
@@ -264,7 +313,7 @@ class gform_update_post
 	public static function process_request()
 	{
 		$post_id = false;
-		$request_key = apply_filters(self::$prefix . '/request_id', self::$settings['request_id']);
+		$request_key = apply_filters(self::PREFIX . '/request_id', self::$settings['request_id']);
 		if (! empty($_REQUEST[$request_key]) )
 			$post_id = $_REQUEST[$request_key];
 
@@ -272,7 +321,7 @@ class gform_update_post
 		{
 			if ( 'POST' == $_SERVER['REQUEST_METHOD'] || (! empty($_REQUEST['nonce']) && wp_verify_nonce($_REQUEST['nonce'], self::$settings['nonce_update'])) )
 			{
-				do_action( self::$prefix . '/setup_form', $post_id );
+				do_action( self::PREFIX . '/setup_form', $post_id );
 			}
 		}
 	}
@@ -295,7 +344,7 @@ class gform_update_post
 			'post_id' => false,
 		), $atts ) );
 
-		do_action( self::$prefix . '/setup_form', $post_id );
+		do_action( self::PREFIX . '/setup_form', $post_id );
 	}
 
 	/**
@@ -360,7 +409,7 @@ class gform_update_post
 		// If no url, use the post_id to get the url to the post being edited
 		if (! $url ) $url = get_permalink($post_id);
 
-		$request_id = apply_filters(self::$prefix . '/request_id', self::$settings['request_id']);
+		$request_id = apply_filters(self::PREFIX . '/request_id', self::$settings['request_id']);
 		return add_query_arg( array($request_id => $post_id, 'nonce' => wp_create_nonce(self::$settings['nonce_update'])), $url );
 	}
 
@@ -386,7 +435,7 @@ class gform_update_post
 		$defaults = array(
 			'post_id' => false,
 			'url'     => false,
-			'text'    => __("Edit Post", self::$prefix),
+			'text'    => __("Edit Post", self::PREFIX),
 			'title'   => false
 		);
 		$args = wp_parse_args( $args, $defaults );
@@ -399,7 +448,7 @@ class gform_update_post
 			// Add the link text to the title if no link title is specified
 			if (! $args['title'] ) $args['title'] = $args['text'];
 	
-			echo '<a class="' . esc_attr(self::$prefix) . '_link" href="' . esc_attr(self::edit_url($args['post_id'], $args['url'])) . '" title="' . esc_attr($args['title']) . '">' . esc_html($args['text']) . '</a>';
+			echo '<a class="' . esc_attr(self::PREFIX) . '_link" href="' . esc_attr(self::edit_url($args['post_id'], $args['url'])) . '" title="' . esc_attr($args['title']) . '">' . esc_html($args['text']) . '</a>';
 		}
 	}
 
@@ -512,8 +561,8 @@ class gform_update_post
 		// Attempt to delete the thumbnail if an image
 		if ( 'image/' == substr($filetype['type'], 0, 6) )
 		{
-			$width       = apply_filters( self::$prefix . '/image/width', apply_filters(self::$prefix . '/file/width', self::$settings['file_width']) );
-			$height      = apply_filters( self::$prefix . '/image/height', apply_filters(self::$prefix . '/file/height', self::$settings['file_height']) );
+			$width       = apply_filters( self::PREFIX . '/image/width', apply_filters(self::PREFIX . '/file/width', self::$settings['file_width']) );
+			$height      = apply_filters( self::PREFIX . '/image/height', apply_filters(self::PREFIX . '/file/height', self::$settings['file_height']) );
 
 			// get the thumbnail name
 			$old_ext     = '.' . $filetype['ext'];
@@ -552,18 +601,18 @@ class gform_update_post
 	
 				ob_start();
 				?>
-				<div class="<?php echo esc_attr(self::$prefix); ?>_upload_container">
-					<p class="<?php echo esc_attr(self::$prefix); ?>_upload_link" style="margin:1em 0 0 0;">
+				<div class="<?php echo esc_attr(self::PREFIX); ?>_upload_container">
+					<p class="<?php echo esc_attr(self::PREFIX); ?>_upload_link" style="margin:1em 0 0 0;">
 						<a target="_blank" href="<?php echo esc_url($file); ?>" style="border:none; margin:0 1em 0 0;">
 							<?php echo $image; ?>
 						</a>
 						<a target="_blank" href="<?php echo esc_url($file); ?>">
-							<strong><?php echo esc_html( apply_filters(self::$prefix . '/file/name', $filename) ); ?></strong>
+							<strong><?php echo esc_html( apply_filters(self::PREFIX . '/file/name', $filename) ); ?></strong>
 						</a>
 					</p>
-					<?php if ( apply_filters( self::$prefix . '/public_file_delete', true ) && apply_filters( self::$prefix . '/public_file_delete/featured', true ) ) : ?>
-						<a class="<?php echo esc_attr(self::$prefix); ?>_delete_link" data-post_id="<?php echo esc_attr(self::$post->ID); ?>" data-form_id="<?php echo esc_attr($form_id); ?>" data-meta="0" data-featured="<?php echo $thumb_id; ?>" href="#<?php _e("delete_requires_javascript", self::$prefix); ?>" title="<?php _e("Delete Upload", self::$prefix); ?>">
-							<?php _e("Delete", self::$prefix); ?>
+					<?php if ( apply_filters( self::PREFIX . '/public_file_delete', true ) && apply_filters( self::PREFIX . '/public_file_delete/featured', true ) ) : ?>
+						<a class="<?php echo esc_attr(self::PREFIX); ?>_delete_link" data-post_id="<?php echo esc_attr(self::$post->ID); ?>" data-form_id="<?php echo esc_attr($form_id); ?>" data-meta="0" data-featured="<?php echo $thumb_id; ?>" href="#<?php _e("delete_requires_javascript", self::PREFIX); ?>" title="<?php _e("Delete Upload", self::PREFIX); ?>">
+							<?php _e("Delete", self::PREFIX); ?>
 						</a>
 					<?php endif; ?>
 				</div>
@@ -578,18 +627,18 @@ class gform_update_post
 			$filetype    = wp_check_filetype( $basename );
 			$mime        = $filetype['type'];
 
-			$width       = apply_filters(self::$prefix . '/file/width', self::$settings['file_width']);
-			$height      = apply_filters(self::$prefix . '/file/height', self::$settings['file_height']);
+			$width       = apply_filters(self::PREFIX . '/file/width', self::$settings['file_width']);
+			$height      = apply_filters(self::PREFIX . '/file/height', self::$settings['file_height']);
 
 			// If this is an image, set up and create a thumbnail
 			if ( 'image/' == substr($mime, 0, 6) )
 			{
-				if ( apply_filters(self::$prefix . '/image/resize', true) )
+				if ( apply_filters(self::PREFIX . '/image/resize', true) )
 				{
 					// Get settings for image thumb
-					$width       = apply_filters(self::$prefix . '/image/width', $width);
-					$height      = apply_filters(self::$prefix . '/image/height', $height);
-					$crop        = apply_filters(self::$prefix . '/image/crop', true);
+					$width       = apply_filters(self::PREFIX . '/image/width', $width);
+					$height      = apply_filters(self::PREFIX . '/image/height', $height);
+					$crop        = apply_filters(self::PREFIX . '/image/crop', true);
 
 					// Create the file local path
 					$basedir	= GFFormsModel::get_upload_path($form_id);
@@ -648,18 +697,18 @@ class gform_update_post
 
 			ob_start();
 			?>
-			<div class="<?php echo esc_attr(self::$prefix); ?>_upload_container">
-				<p class="<?php echo esc_attr(self::$prefix); ?>_upload_link" style="margin:1em 0 0 0;">
+			<div class="<?php echo esc_attr(self::PREFIX); ?>_upload_container">
+				<p class="<?php echo esc_attr(self::PREFIX); ?>_upload_link" style="margin:1em 0 0 0;">
 					<a target="_blank" href="<?php echo esc_url($file); ?>" style="border:none; margin:0 1em 0 0;">
 						<?php echo $image; ?>
 					</a>
 					<a target="_blank" href="<?php echo esc_url($file); ?>">
-						<strong><?php echo esc_html( apply_filters(self::$prefix . '/file/name', $basename) ); ?></strong>
+						<strong><?php echo esc_html( apply_filters(self::PREFIX . '/file/name', $basename) ); ?></strong>
 					</a>
 				</p>
-				<?php if ( apply_filters( self::$prefix . '/public_file_delete', true ) ) : ?>
-					<a class="<?php echo esc_attr(self::$prefix); ?>_delete_link" data-post_id="<?php echo esc_attr(self::$post->ID); ?>" data-form_id="<?php echo esc_attr($form_id); ?>" data-meta="<?php echo esc_attr($field['postCustomFieldName']); ?>" data-featured="0" href="#<?php _e("delete_requires_javascript", self::$prefix); ?>" title="<?php _e("Delete Upload", self::$prefix); ?>">
-						<?php _e("Delete", self::$prefix); ?>
+				<?php if ( apply_filters( self::PREFIX . '/public_file_delete', true ) ) : ?>
+					<a class="<?php echo esc_attr(self::PREFIX); ?>_delete_link" data-post_id="<?php echo esc_attr(self::$post->ID); ?>" data-form_id="<?php echo esc_attr($form_id); ?>" data-meta="<?php echo esc_attr($field['postCustomFieldName']); ?>" data-featured="0" href="#<?php _e("delete_requires_javascript", self::PREFIX); ?>" title="<?php _e("Delete Upload", self::PREFIX); ?>">
+						<?php _e("Delete", self::PREFIX); ?>
 					</a>
 				<?php endif; ?>
 			</div>
@@ -682,7 +731,7 @@ class gform_update_post
 	 */
 	public static function gform_form_tag( $form_tag, $form )
 	{
-		$form_tag .= '<input type="hidden" name="' . apply_filters(self::$prefix . '/request_id', self::$settings['request_id']) . '" value="' . self::$post->ID . '" class="gform_hidden" />';
+		$form_tag .= '<input type="hidden" name="' . apply_filters(self::PREFIX . '/request_id', self::$settings['request_id']) . '" value="' . self::$post->ID . '" class="gform_hidden" />';
 		return $form_tag;
 	}
 
@@ -962,7 +1011,7 @@ class gform_update_post
 	 */
 	public static function current_user_can( $post_id=false )
 	{
-		$public_edit = apply_filters( self::$prefix . '/public_edit', false );
+		$public_edit = apply_filters( self::PREFIX . '/public_edit', false );
 		if ( true === $public_edit )
 		{
 			return true;
@@ -1029,7 +1078,7 @@ class gform_update_post
 
 				<input type="checkbox" id="<?php echo esc_attr(self::$settings['unique_field']); ?>" onclick="SetFieldProperty('postCustomFieldUnique', this.checked);" />
 				<label for="<?php echo esc_attr(self::$settings['unique_field']); ?>" class="inline">
-					<?php _e("Unique Custom Field?", self::$prefix); ?>
+					<?php _e("Unique Custom Field?", self::PREFIX); ?>
 					<?php gform_tooltip('form_' . self::$settings['unique_field']) ?>
 				</label>
 
@@ -1094,11 +1143,9 @@ class gform_update_post
 	 */
 	public function gform_tooltips($tooltips)
 	{
-		$tooltips['form_' . self::$settings['unique_field']] = __("<h6>Unique Meta Field</h6>Check this box to ensure this meta field is saved as unique.", self::$prefix);
+		$tooltips['form_' . self::$settings['unique_field']] = __("<h6>Unique Meta Field</h6>Check this box to ensure this meta field is saved as unique.", self::PREFIX);
 		return $tooltips;
 	}
 }
-
-gform_update_post::init();
 
 endif;

@@ -1,4 +1,4 @@
-# Gravity Forms: Update Post
+# Gravity Forms: Post Updates
 
 This started as an update to the [Gravity Forms Update Post](http://wordpress.org/extend/plugins/gravity-forms-update-post/developers/) plugin developed by [p51labs](http://www.p51labs.com/) here.
 
@@ -39,7 +39,8 @@ include_once('gravityforms-update-post/gravityforms-update-post.php');
 * Completely removed the ability to delete posts.
 * There are some filters to customize things now.
 * Adds non-query-var template method to setup a form.
-* Adds a really basic shortcode to setup a form (Ideally when Gravity Forms updates to include the updates to shortcode in 3.6, this will get better).
+* Adds a really basic shortcode to setup a form (UPDATE: This is still supported, but it is better to use the addition, below, to the gravityform shortcode).
+* Adds an additional attribute to the gravityform shortcode: "update"
 
 ## Some Important Notes (FAQ)
 
@@ -87,6 +88,18 @@ do_action('gform_update_post/setup_form', $post->ID);
 ## SHORTCODE
 
 ```php
+[gravityforms id="1" update] // Loads current post for editing
+
+[gravityforms id="1" update="34"] // Loads post where ID=34 for editing
+```
+
+We worked with Rocketgenius, makers of Gravity Forms, to get a small upgrade added that allows us to extend their shortcode, so now you can simply add the "update" attribute to the normal "gravityform" shortcode. If you only add "update", it will load the current post in to update. If you add an integer to the update attribute, it will use that to load a post by its ID.
+
+## OLD SHORTCODE METHOD
+
+This is supported for legacy, but I am not sure why you would use it anymore moving forward.
+
+```php
 [gform_update_post]
 
 [gform_update_post post_id=1]
@@ -94,7 +107,7 @@ do_action('gform_update_post/setup_form', $post->ID);
 
 **Options**
 
-* `id` (int) (optional) The id of the post you want to edit. Default: global $post->ID
+* `post_id` (int) (optional) The id of the post you want to edit. Default: global $post->ID
 
 # Filter Overview
 
