@@ -80,7 +80,15 @@ Image fields are only supported if they are the "Featured Image". Otherwise you 
 
 == Changelog ==
 
-= 1.2 - 2014-02-13 =
+= 1.2.2 - 2014-05-17 =
+
+* Fixed prefix property to contant slip.
+
+= 1.2.1 - 2014-05-17
+
+* Added a filter to allow multifield values to be adjusted.
+
+= 1.2 - 2014-05-13 =
 
 * Added the shortcode support to Gravity Forms main shortcode.
 
