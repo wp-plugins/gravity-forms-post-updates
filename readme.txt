@@ -4,7 +4,7 @@ Donate link: https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=jacob
 Tags: gravity forms, update posts, frontend, front end
 Requires at least: 3.6.1
 Tested up to: 3.9.1
-Stable tag: 1.2.1
+Stable tag: 1.2.3
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -79,6 +79,10 @@ Image fields are only supported if they are the "Featured Image". Otherwise you 
 1. A form on the front end. This just demonstrates the image/file capabilities.
 
 == Changelog ==
+
+= 1.2.3 - 2014-05-17 =
+
+* Updated taxonomies to allow for more than one custom taxonomy to have value retrieved when updating.
 
 = 1.2.2 - 2014-05-17 =
 

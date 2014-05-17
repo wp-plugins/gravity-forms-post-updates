@@ -3,7 +3,7 @@
 Plugin Name: Gravity Forms: Post Updates
 Plugin URI: http://bitbucket.org/jupitercow/gravity-forms-update-post
 Description: Allow Gravity Forms to update post Content and the meta data associated with it. Based off the original version by Kevin Miller, this version removed delete functionality, fixed a few bugs, and adds support for file uploads.
-Version: 1.2.2
+Version: 1.2.3
 Author: Jake Snyder
 Author URI: http://Jupitercow.com/
 Contributer: p51labs
@@ -834,7 +834,7 @@ class gform_update_post
 				$field['inputName'] = $field_type;
 
 				self::$settings['cat_value'] = $value;
-				add_filter( 'gform_field_value_' . $field['inputName'], array(__CLASS__, 'return_category_field_value') );
+				add_filter( 'gform_field_value_' . $field['inputName'], array(__CLASS__, 'return_category_field_value'), 10, 2 );
 				#add_filter( 'gform_field_value_' . $field['inputName'], function($value) use($value) { return $value; } );
 				break;
 
@@ -843,8 +843,8 @@ class gform_update_post
 				$field['allowsPrepopulate'] = true;
 				$field['inputName'] = $field['populateTaxonomy'];
 
-				self::$settings['tax_value'] = $value;
-				add_filter( 'gform_field_value_' . $field['inputName'], array(__CLASS__, 'return_taxonomy_field_value') );
+				self::$settings['tax_value'][$field['inputName']] = $value;
+				add_filter( 'gform_field_value_' . $field['inputName'], array(__CLASS__, 'return_taxonomy_field_value') , 10, 2 );
 				#add_filter( 'gform_field_value_' . $field['inputName'], function($value) use($value) { return $value; } );
 				break;
 
@@ -901,13 +901,13 @@ class gform_update_post
 	 * @author  Jake Snyder
 	 * @return	value
 	 */
-	public static function return_category_field_value( $value )
+	public static function return_category_field_value( $value, $field )
 	{
 		return (! empty(self::$settings['cat_value']) ) ? self::$settings['cat_value'] : $value;
 	}
-	public static function return_taxonomy_field_value( $value )
+	public static function return_taxonomy_field_value( $value, $field )
 	{
-		return (! empty(self::$settings['tax_value']) ) ? self::$settings['tax_value'] : $value;
+		return (! empty(self::$settings['tax_value'][$field['inputName']]) ) ? self::$settings['tax_value'][$field['inputName']] : $value;
 	}
 
 	/**
