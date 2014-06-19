@@ -3,7 +3,7 @@
 Plugin Name: Gravity Forms: Post Updates
 Plugin URI: http://bitbucket.org/jupitercow/gravity-forms-update-post
 Description: Allow Gravity Forms to update post Content and the meta data associated with it. Based off the original version by Kevin Miller, this version removed delete functionality, fixed a few bugs, and adds support for file uploads.
-Version: 1.2.4
+Version: 1.2.5
 Author: Jake Snyder
 Author URI: http://Jupitercow.com/
 Contributer: p51labs
@@ -958,10 +958,21 @@ class gform_update_post
 			// If a custom field is unique, delete the old value(s) before we proceed
 			foreach ( $form['fields'] as $field )
 			{
-				if ( 'post_custom_field' == $field['type'] && (isset($field['postCustomFieldUnique']) || in_array($field['inputType'], $always_unique)) && ( 'fileupload' != $field['inputType'] || ('fileupload' == $field['inputType'] && ! empty($_FILES['input_' . $field['id']]['tmp_name']) ) ) )
-				{
-					delete_post_meta(self::$post->ID, $field['postCustomFieldName']);
+				// Make sure we are dealing with a custom field
+				if ( 'post_custom_field' != $field['type'] ) {
+					continue;
 				}
+
+				// if the field is specifically not unique and is not part of the unique array
+				if ( isset( $field['postCustomFieldUnique'] ) && false === $field['postCustomFieldUnique'] && !in_array( $field['inputType'], $always_unique ) ) {
+					continue;
+				}
+
+				if ( 'fileupload' == $field['inputType'] && empty( $_FILES['input_' . $field['id']]['tmp_name'] ) ) {
+					continue;
+				}
+
+				delete_post_meta(self::$post->ID, $field['postCustomFieldName']);
 			}
 
 			$post_data['ID']             = self::$post->ID;
