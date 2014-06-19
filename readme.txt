@@ -80,7 +80,7 @@ Image fields are only supported if they are the "Featured Image". Otherwise you 
 
 == Changelog ==
 
-## 1.2.5 - 2014-06-19
+## 1.2.5 - 2014-07-19
 
 - Added patch from Tanner Moushey to fix issue where custom fields could only be unique. This allows non-unique custom fields.
 
