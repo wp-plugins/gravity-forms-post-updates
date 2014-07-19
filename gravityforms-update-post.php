@@ -3,7 +3,7 @@
 Plugin Name: Gravity Forms: Post Updates
 Plugin URI: http://bitbucket.org/jupitercow/gravity-forms-update-post
 Description: Allow Gravity Forms to update post Content and the meta data associated with it. Based off the original version by Kevin Miller, this version removed delete functionality, fixed a few bugs, and adds support for file uploads.
-Version: 1.2.5
+Version: 1.2.6
 Author: Jake Snyder
 Author URI: http://Jupitercow.com/
 Contributer: p51labs
@@ -47,7 +47,7 @@ class gform_update_post
 	 * @since 	1.2
 	 * @var 	string
 	 */
-	const VERSION = '1.2';
+	const VERSION = '1.2.6';
 
 	/**
 	 * Settings
@@ -168,13 +168,19 @@ class gform_update_post
 			add_filter( 'gform_field_validation',        array(__CLASS__, 'required_upload_field_validation'), 10, 4 );
 
 			// Adds a really basic shortcode to set the plugin in action
-			add_shortcode( self::PREFIX,                array(__CLASS__, 'shortcode') );
+			add_shortcode( self::PREFIX,                 array(__CLASS__, 'shortcode') );
+
+			// Adds a really basic shortcode to set the plugin in action
+			add_shortcode( self::PREFIX . '_edit_link',  array(__CLASS__, 'shortcode_edit_link') );
 
 			// Add an action to set up the form
-			add_action( self::PREFIX . '/setup_form',   array(__CLASS__, 'setup_form') );
+			add_action( self::PREFIX . '/setup_form',    array(__CLASS__, 'setup_form') );
 
 			// Add an action to create a link
-			add_action( self::PREFIX . '/edit_link',    array(__CLASS__, 'edit_link') );
+			add_filter( self::PREFIX . '/edit_url',      array(__CLASS__, 'edit_url'), 10, 2 );
+
+			// Add an action to create a link
+			add_action( self::PREFIX . '/edit_link',     array(__CLASS__, 'edit_link') );
 
 			// Ajax file delete
 			add_action( 'wp_ajax_' . self::PREFIX . '_delete_upload', array(__CLASS__, 'ajax_delete_upload') );
@@ -449,8 +455,29 @@ class gform_update_post
 			// Add the link text to the title if no link title is specified
 			if (! $args['title'] ) $args['title'] = $args['text'];
 	
-			echo '<a class="' . esc_attr(self::PREFIX) . '_link' . ($args['class'] ? ' ' . esc_attr($args['class']) : '') . '" href="' . esc_attr(self::edit_url($args['post_id'], $args['url'])) . '" title="' . esc_attr($args['title']) . '">' . esc_html($args['text']) . '</a>';
+			echo '<a class="' . esc_attr(self::PREFIX) . '_link' . ($args['class'] ? ' ' . esc_attr($args['class']) : '') . '" href="' . esc_attr( apply_filters(self::PREFIX.'/edit_url', $args['post_id'], $args['url']) ) . '" title="' . esc_attr($args['title']) . '">' . esc_html($args['text']) . '</a>';
 		}
+	}
+
+	/**
+	 * Create a link to edit a post
+	 *
+	 * @author  Jake Snyder
+	 * @since   1.2.6
+	 * @type	shortcode
+	 * @return	void	
+	 */
+	public static function shortcode_edit_link( $atts )
+	{
+		$args = shortcode_atts( array(
+			'post_id' => false,
+			'url'     => false,
+			'text'    => __("Edit Post", self::PREFIX),
+			'title'   => false,
+			'class'   => '',
+		), $atts );
+
+		do_action( self::PREFIX . '/edit_link', $args );
 	}
 
 	/**
