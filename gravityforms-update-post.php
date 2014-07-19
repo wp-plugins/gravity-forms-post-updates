@@ -3,7 +3,7 @@
 Plugin Name: Gravity Forms: Post Updates
 Plugin URI: http://bitbucket.org/jupitercow/gravity-forms-update-post
 Description: Allow Gravity Forms to update post Content and the meta data associated with it. Based off the original version by Kevin Miller, this version removed delete functionality, fixed a few bugs, and adds support for file uploads.
-Version: 1.2.6
+Version: 1.2.7
 Author: Jake Snyder
 Author URI: http://Jupitercow.com/
 Contributer: p51labs
@@ -170,17 +170,23 @@ class gform_update_post
 			// Adds a really basic shortcode to set the plugin in action
 			add_shortcode( self::PREFIX,                 array(__CLASS__, 'shortcode') );
 
-			// Adds a really basic shortcode to set the plugin in action
-			add_shortcode( self::PREFIX . '_edit_link',  array(__CLASS__, 'shortcode_edit_link') );
 
 			// Add an action to set up the form
 			add_action( self::PREFIX . '/setup_form',    array(__CLASS__, 'setup_form') );
 
-			// Add an action to create a link
-			add_filter( self::PREFIX . '/edit_url',      array(__CLASS__, 'edit_url'), 10, 2 );
+
+			// Add a filter to get an edit url
+			add_filter( self::PREFIX . '/edit_url',      array(__CLASS__, 'get_edit_url'), 10, 2 );
+
+			// Add a filter to get an edit link
+			add_filter( self::PREFIX . '/get_edit_link', array(__CLASS__, 'get_edit_link'), 99 );
+
+			// Adds a really basic shortcode to set the plugin in action
+			add_shortcode( self::PREFIX . '_edit_link',  array(__CLASS__, 'shortcode_edit_link') );
 
 			// Add an action to create a link
 			add_action( self::PREFIX . '/edit_link',     array(__CLASS__, 'edit_link') );
+
 
 			// Ajax file delete
 			add_action( 'wp_ajax_' . self::PREFIX . '_delete_upload', array(__CLASS__, 'ajax_delete_upload') );
@@ -333,27 +339,6 @@ class gform_update_post
 	}
 
 	/**
-	 * Create a simple short code to setup a form
-	 *
-	 * Set up a form on a post or page to be editable.
-	 *
-	 * @author  Jake Snyder
-	 * @date	12/09/13
-	 *
-	 * @type	shortcode
-	 *
-	 * @return	void	
-	 */
-	public static function shortcode( $atts )
-	{
-		extract( shortcode_atts( array(
-			'post_id' => false,
-		), $atts ) );
-
-		do_action( self::PREFIX . '/setup_form', $post_id );
-	}
-
-	/**
 	 * Get the Post Object
 	 *
 	 * Used to get the post from id along with taxonomies.
@@ -406,7 +391,7 @@ class gform_update_post
 	 * @param	string	$url By default the permalink of the post that you want to edit is used, use this to send to a different page to edit the post whose id is provided
 	 * @return	void
 	 */
-	public static function edit_url( $post_id=false, $url=false )
+	public static function get_edit_url( $post_id=false, $url=false )
 	{
 		if (! $post_id && ! empty($GLOBALS['post']) ) $post_id = $GLOBALS['post']->ID;
 
@@ -438,6 +423,27 @@ class gform_update_post
 	 */
 	public static function edit_link( $args=array() )
 	{
+		echo apply_filters( self::PREFIX . '/get_edit_link', $args );
+	}
+
+	/**
+	 * Build Edit Link and return
+	 *
+	 * Create anchor link with the edit URI. Uses self::edit_url to create the URI.
+	 *
+	 * Arguments:
+	 *	post_id (int) is the id of the post you want to edit
+	 *	url (string|int) is either the full url of the page where your edit form resides, or an id for the page where the edit form resides
+	 *	test (string) is the link text
+	 *	title (string) is the title attribute of the anchor tag
+	 *
+	 * @author  Jake Snyder
+	 * @since   1.2.7
+	 * @param	array|string $args The arguments to use when creating a link
+	 * @return	void
+	 */
+	public static function get_edit_link( $args=array() )
+	{
 		$defaults = array(
 			'post_id' => false,
 			'url'     => false,
@@ -447,6 +453,8 @@ class gform_update_post
 		);
 		$args = wp_parse_args( $args, $defaults );
 
+		$output = '';
+
 		// Get the current post id, if none is provided
 		if (! $args['post_id'] && ! empty($GLOBALS['post']->ID) ) $args['post_id'] = $GLOBALS['post']->ID;
 
@@ -454,9 +462,12 @@ class gform_update_post
 		{
 			// Add the link text to the title if no link title is specified
 			if (! $args['title'] ) $args['title'] = $args['text'];
-	
-			echo '<a class="' . esc_attr(self::PREFIX) . '_link' . ($args['class'] ? ' ' . esc_attr($args['class']) : '') . '" href="' . esc_attr( apply_filters(self::PREFIX.'/edit_url', $args['post_id'], $args['url']) ) . '" title="' . esc_attr($args['title']) . '">' . esc_html($args['text']) . '</a>';
+			$output = '<a class="' . esc_attr(self::PREFIX) . '_link' . ($args['class'] ? ' ' . esc_attr($args['class']) : '') . '" ';
+			$output = 'href="' . esc_attr( apply_filters(self::PREFIX.'/edit_url', $args['post_id'], $args['url']) ) . '" ';
+			$output = 'title="' . esc_attr($args['title']) . '">' . esc_html($args['text']) . '</a>';
 		}
+
+		return $output;
 	}
 
 	/**
@@ -469,15 +480,30 @@ class gform_update_post
 	 */
 	public static function shortcode_edit_link( $atts )
 	{
-		$args = shortcode_atts( array(
-			'post_id' => false,
-			'url'     => false,
-			'text'    => __("Edit Post", self::PREFIX),
-			'title'   => false,
-			'class'   => '',
-		), $atts );
+		$args = shortcode_atts( array(), $atts );
 
-		do_action( self::PREFIX . '/edit_link', $args );
+		return apply_filters( self::PREFIX . '/get_edit_link', $args );
+	}
+
+	/**
+	 * Create a simple short code to setup a form
+	 *
+	 * Set up a form on a post or page to be editable.
+	 *
+	 * @author  Jake Snyder
+	 * @date	12/09/13
+	 *
+	 * @type	shortcode
+	 *
+	 * @return	void	
+	 */
+	public static function shortcode( $atts )
+	{
+		extract( shortcode_atts( array(
+			'post_id' => false,
+		), $atts ) );
+
+		do_action( self::PREFIX . '/setup_form', $post_id );
 	}
 
 	/**
