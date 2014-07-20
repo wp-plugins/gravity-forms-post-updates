@@ -3,7 +3,7 @@
 Plugin Name: Gravity Forms: Post Updates
 Plugin URI: http://bitbucket.org/jupitercow/gravity-forms-update-post
 Description: Allow Gravity Forms to update post Content and the meta data associated with it. Based off the original version by Kevin Miller, this version removed delete functionality, fixed a few bugs, and adds support for file uploads.
-Version: 1.2.7
+Version: 1.2.8
 Author: Jake Snyder
 Author URI: http://Jupitercow.com/
 Contributer: p51labs
@@ -405,28 +405,6 @@ class gform_update_post
 	}
 
 	/**
-	 * Build Edit Link
-	 *
-	 * Create anchor link with the edit URI. Uses self::edit_url to create the URI.
-	 *
-	 * Arguments:
-	 *	post_id (int) is the id of the post you want to edit
-	 *	url (string|int) is either the full url of the page where your edit form resides, or an id for the page where the edit form resides
-	 *	test (string) is the link text
-	 *	title (string) is the title attribute of the anchor tag
-	 *
-	 * @author  Jake Snyder
-	 * @date	12/09/13
-	 *
-	 * @param	array|string $args The arguments to use when creating a link
-	 * @return	void
-	 */
-	public static function edit_link( $args=array() )
-	{
-		echo apply_filters( self::PREFIX . '/get_edit_link', $args );
-	}
-
-	/**
 	 * Build Edit Link and return
 	 *
 	 * Create anchor link with the edit URI. Uses self::edit_url to create the URI.
@@ -462,12 +440,32 @@ class gform_update_post
 		{
 			// Add the link text to the title if no link title is specified
 			if (! $args['title'] ) $args['title'] = $args['text'];
-			$output = '<a class="' . esc_attr(self::PREFIX) . '_link' . ($args['class'] ? ' ' . esc_attr($args['class']) : '') . '" ';
-			$output = 'href="' . esc_attr( apply_filters(self::PREFIX.'/edit_url', $args['post_id'], $args['url']) ) . '" ';
-			$output = 'title="' . esc_attr($args['title']) . '">' . esc_html($args['text']) . '</a>';
+			$output .= '<a class="' . esc_attr(self::PREFIX) . '_link' . ($args['class'] ? ' ' . esc_attr($args['class']) : '') . '" href="' . esc_attr( apply_filters(self::PREFIX.'/edit_url', $args['post_id'], $args['url']) ) . '" title="' . esc_attr($args['title']) . '">' . esc_html($args['text']) . '</a>';
 		}
 
 		return $output;
+	}
+
+	/**
+	 * Build Edit Link
+	 *
+	 * Create anchor link with the edit URI. Uses self::edit_url to create the URI.
+	 *
+	 * Arguments:
+	 *	post_id (int) is the id of the post you want to edit
+	 *	url (string|int) is either the full url of the page where your edit form resides, or an id for the page where the edit form resides
+	 *	test (string) is the link text
+	 *	title (string) is the title attribute of the anchor tag
+	 *
+	 * @author  Jake Snyder
+	 * @date	12/09/13
+	 *
+	 * @param	array|string $args The arguments to use when creating a link
+	 * @return	void
+	 */
+	public static function edit_link( $args=array() )
+	{
+		echo apply_filters( self::PREFIX . '/get_edit_link', $args );
 	}
 
 	/**
@@ -480,7 +478,10 @@ class gform_update_post
 	 */
 	public static function shortcode_edit_link( $atts )
 	{
-		$args = shortcode_atts( array(), $atts );
+		$args = shortcode_atts( array(
+			'post_id' => false,
+			'url' => false
+		), $atts );
 
 		return apply_filters( self::PREFIX . '/get_edit_link', $args );
 	}
