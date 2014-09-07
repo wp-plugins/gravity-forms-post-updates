@@ -3,8 +3,8 @@ Contributors: jcow
 Donate link: https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=jacobsnyder%40gmail%2ecom&lc=US&item_name=Jacob%20Snyder&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donate_SM%2egif%3aNonHosted
 Tags: gravity forms, update posts, frontend, front end
 Requires at least: 3.6.1
-Tested up to: 3.9.1
-Stable tag: 1.2.9
+Tested up to: 4.0
+Stable tag: 1.2.10
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -79,6 +79,10 @@ Image fields are only supported if they are the "Featured Image". Otherwise you 
 1. A form on the front end. This just demonstrates the image/file capabilities.
 
 == Changelog ==
+
+## 1.2.10 - 2014-09-07
+
+- Updated multi upload support to allow better control.
 
 ## 1.2.9 - 2014-09-07
 

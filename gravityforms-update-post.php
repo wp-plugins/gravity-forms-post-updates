@@ -3,7 +3,7 @@
 Plugin Name: Gravity Forms: Post Updates
 Plugin URI: http://bitbucket.org/jupitercow/gravity-forms-update-post
 Description: Allow Gravity Forms to update post Content and the meta data associated with it. Based off the original version by Kevin Miller, this version removed delete functionality, fixed a few bugs, and adds support for file uploads.
-Version: 1.2.9
+Version: 1.2.10
 Author: Jake Snyder
 Author URI: http://Jupitercow.com/
 Contributer: p51labs
@@ -551,6 +551,7 @@ class gform_update_post
 			'nonce' => '',
 			'post_id' => 0,
 			'form_id' => 0,
+			'file' => false,
 			'featured' => 0,
 			'meta' => ''
 		);
@@ -572,7 +573,7 @@ class gform_update_post
 		}
 		elseif ( $options['meta'] )
 		{
-			self::delete_upload( $options['post_id'], $options['form_id'], $options['meta'] );
+			self::delete_upload( $options );
 		}
 		else
 		{
@@ -589,14 +590,14 @@ class gform_update_post
 	 * @date	22/08/13
 	 * @return	void
 	 */
-	public static function delete_upload( $post_id, $form_id, $meta )
+	public static function delete_upload( $options )
 	{
-		$file     = get_post_meta( $post_id, $meta, true );
+		$file     = ( $options['file'] ) ? $options['file'] : get_post_meta( $options['post_id'], $options['meta'], true );
 		$filetype = wp_check_filetype( $file );
 
 		// get the thumbnail name
-		$path_to_file = GFFormsModel::get_upload_path($form_id);
-		$url_to_file  = GFFormsModel::get_upload_url($form_id);
+		$path_to_file = GFFormsModel::get_upload_path($options['form_id']);
+		$url_to_file  = GFFormsModel::get_upload_url($options['form_id']);
 		$file_path    = str_replace($url_to_file, $path_to_file, $file);
 
 		// Delete the file
@@ -616,7 +617,11 @@ class gform_update_post
 		}
 
 		// Remove the meta from the post
-		return delete_post_meta( $post_id, $meta );
+		if ( $options['file'] ) {
+			return delete_post_meta( $options['post_id'], $options['meta'], $options['file'] );
+		} else {
+			return delete_post_meta( $options['post_id'], $options['meta'] );
+		}
 	}
 
 	/**
@@ -665,29 +670,22 @@ class gform_update_post
 		}
 		elseif (! empty($field['inputType']) && 'fileupload' == $field['inputType'] && ! empty($field['defaultValue']) )
 		{
-			ob_start();
-			?>
-			<div class="<?php echo esc_attr(self::PREFIX); ?>_upload_container">
-				<?php
-				if (! empty($field['multipleFiles']) ) :
-					$file_array = explode(', ', $field['defaultValue']);
-					if ( $file_array ) :
-						foreach ( $file_array as $file ) :
-							self::create_uploaded_file( $file, $field, $form_id );
-						endforeach;
-					endif;
-				else :
-					self::create_uploaded_file( $field['defaultValue'], $field, $form_id );
-				endif;
-
-				if ( apply_filters( self::PREFIX . '/public_file_delete', true ) ) : ?>
-					<a class="<?php echo esc_attr(self::PREFIX); ?>_delete_link" data-post_id="<?php echo esc_attr(self::$post->ID); ?>" data-form_id="<?php echo esc_attr($form_id); ?>" data-meta="<?php echo esc_attr($field['postCustomFieldName']); ?>" data-featured="0" href="#<?php _e("delete_requires_javascript", self::PREFIX); ?>" title="<?php _e("Delete Upload", self::PREFIX); ?>">
-						<?php _e("Delete", self::PREFIX); ?>
-					</a>
-				<?php endif; ?>
-			</div>
-			<?php
-			$content .= ob_get_clean();
+			if (! empty($field['multipleFiles']) )
+			{
+				$content .= '<a class="' . esc_attr(self::PREFIX) . '_addmore_link" href="#' . __("requires_javascript", self::PREFIX) . '" title="' . __("Add more uploads", self::PREFIX) . '">' . __("Add more", self::PREFIX) . '</a>';
+				$file_array = explode(', ', $field['defaultValue']);
+				if ( $file_array )
+				{
+					foreach ( $file_array as $file )
+					{
+						$content .= self::create_uploaded_file( $file, $field, $form_id );
+					}
+				}
+			}
+			else
+			{
+				$content .= self::create_uploaded_file( $field['defaultValue'], $field, $form_id );
+			}
 		}
 		return $content;
 	}
@@ -771,17 +769,27 @@ class gform_update_post
 			$image_url = wp_mime_type_icon( wp_ext2type($filetype['ext']) );
 		}
 
-		$image = '<span style="display:inline-block; width:' . esc_attr($width) . 'px; height:' . esc_attr($height) . 'px; overflow:hidden;"><img src="' . esc_url($image_url) . '" /></span>'; ?>
-		<p class="<?php echo esc_attr(self::PREFIX); ?>_upload_link" style="margin:1em 0 0 0;">
-			<a target="_blank" href="<?php echo esc_url($file); ?>" style="border:none; margin:0 1em 0 0;">
-				<?php echo $image; ?>
-			</a>
-			<a target="_blank" href="<?php echo esc_url($file); ?>">
-				<strong><?php echo esc_html( apply_filters(self::PREFIX . '/file/name', $basename) ); ?></strong>
-			</a>
-		</p>
+		$image = '<span style="display:inline-block; width:' . esc_attr($width) . 'px; height:' . esc_attr($height) . 'px; overflow:hidden;"><img src="' . esc_url($image_url) . '" /></span>';
+
+		ob_start();
+		?>
+		<div class="<?php echo esc_attr(self::PREFIX); ?>_upload_container">
+			<p class="<?php echo esc_attr(self::PREFIX); ?>_upload_link" style="margin:1em 0 0 0;">
+				<a target="_blank" href="<?php echo esc_url($file); ?>" style="border:none; margin:0 1em 0 0;">
+					<?php echo $image; ?>
+				</a>
+				<a target="_blank" href="<?php echo esc_url($file); ?>">
+					<strong><?php echo esc_html( apply_filters(self::PREFIX . '/file/name', $basename) ); ?></strong>
+				</a>
+			</p>
+			<?php if ( apply_filters( self::PREFIX . '/public_file_delete', true ) ) : ?>
+				<a class="<?php echo esc_attr(self::PREFIX); ?>_delete_link" data-post_id="<?php echo esc_attr(self::$post->ID); ?>" data-form_id="<?php echo esc_attr($form_id); ?>" data-meta="<?php echo esc_attr($field['postCustomFieldName']); ?>" data-featured="0" href="#<?php _e("delete_requires_javascript", self::PREFIX); ?>" title="<?php _e("Delete Upload", self::PREFIX); ?>">
+					<?php _e("Delete", self::PREFIX); ?>
+				</a>
+			<?php endif; ?>
+		</div>
 		<?php
-		#return ob_get_clean();
+		return ob_get_clean();
 	}
 
 	/**
