@@ -3,7 +3,7 @@
 Plugin Name: Gravity Forms: Post Updates
 Plugin URI: http://bitbucket.org/jupitercow/gravity-forms-update-post
 Description: Allow Gravity Forms to update post Content and the meta data associated with it. Based off the original version by Kevin Miller, this version removed delete functionality, fixed a few bugs, and adds support for file uploads.
-Version: 1.2.8
+Version: 1.2.9
 Author: Jake Snyder
 Author URI: http://Jupitercow.com/
 Contributer: p51labs
@@ -262,7 +262,6 @@ class gform_update_post
 	 *
 	 * @author  Jake Snyder
 	 * @date	12/09/13
-	 *
 	 * @return	bool
 	 */
 	public static function test_requirements()
@@ -280,7 +279,6 @@ class gform_update_post
 	 *
 	 * @author  Jake Snyder
 	 * @date	12/08/13
-	 *
 	 * @return	void
 	 */
     public static function admin_warnings()
@@ -319,7 +317,6 @@ class gform_update_post
 	 *
 	 * @author  Jake Snyder
 	 * @date	22/08/13
-	 *
 	 * @return	void	
 	 */
 	public static function process_request()
@@ -345,8 +342,7 @@ class gform_update_post
 	 *
 	 * @author  Kevin Miller
 	 * @author  Jake Snyder
-	 * @date	22/08/13
-	 *
+	 * @date	22/08/13]
 	 * @param	int $post_id
 	 * @return	void
 	 */
@@ -386,7 +382,6 @@ class gform_update_post
 	 *
 	 * @author  Jake Snyder
 	 * @date	22/08/13
-	 *
 	 * @param	int		$post_id ID of the post you want to edit
 	 * @param	string	$url By default the permalink of the post that you want to edit is used, use this to send to a different page to edit the post whose id is provided
 	 * @return	void
@@ -459,7 +454,6 @@ class gform_update_post
 	 *
 	 * @author  Jake Snyder
 	 * @date	12/09/13
-	 *
 	 * @param	array|string $args The arguments to use when creating a link
 	 * @return	void
 	 */
@@ -492,10 +486,8 @@ class gform_update_post
 	 * Set up a form on a post or page to be editable.
 	 *
 	 * @author  Jake Snyder
-	 * @date	12/09/13
-	 *
+	 * @date	12/09/13]
 	 * @type	shortcode
-	 *
 	 * @return	void	
 	 */
 	public static function shortcode( $atts )
@@ -514,7 +506,6 @@ class gform_update_post
 	 *
 	 * @author  Jake Snyder
 	 * @date	22/08/13
-	 *
 	 * @param	int		$post_id id of the post you want to edit
 	 * @return	void
 	 */
@@ -551,7 +542,6 @@ class gform_update_post
 	 *
 	 * @author  Jake Snyder
 	 * @date	22/08/13
-	 *
 	 * @return	void
 	 */
 	public static function ajax_delete_upload()
@@ -597,7 +587,6 @@ class gform_update_post
 	 *
 	 * @author  Jake Snyder
 	 * @date	22/08/13
-	 *
 	 * @return	void
 	 */
 	public static function delete_upload( $post_id, $form_id, $meta )
@@ -637,7 +626,6 @@ class gform_update_post
 	 *
 	 * @author  Jake Snyder
 	 * @date	22/08/13
-	 *
 	 * @type	filter
 	 */
 	public static function gform_field_content( $content, $field, $value, $lead_id, $form_id )
@@ -677,91 +665,22 @@ class gform_update_post
 		}
 		elseif (! empty($field['inputType']) && 'fileupload' == $field['inputType'] && ! empty($field['defaultValue']) )
 		{
-			$file        = $field['defaultValue'];
-			$basename    = basename($file);
-			$filetype    = wp_check_filetype( $basename );
-			$mime        = $filetype['type'];
-
-			$width       = apply_filters(self::PREFIX . '/file/width', self::$settings['file_width']);
-			$height      = apply_filters(self::PREFIX . '/file/height', self::$settings['file_height']);
-
-			// If this is an image, set up and create a thumbnail
-			if ( 'image/' == substr($mime, 0, 6) )
-			{
-				if ( apply_filters(self::PREFIX . '/image/resize', true) )
-				{
-					// Get settings for image thumb
-					$width       = apply_filters(self::PREFIX . '/image/width', $width);
-					$height      = apply_filters(self::PREFIX . '/image/height', $height);
-					$crop        = apply_filters(self::PREFIX . '/image/crop', true);
-
-					// Create the file local path
-					$basedir	= GFFormsModel::get_upload_path($form_id);
-					$baseurl	= GFFormsModel::get_upload_url($form_id);
-					$filename   = str_replace($baseurl, $basedir, $file);
-
-					// Make sure the server supports resize and save
-					$img_editor_test = wp_image_editor_supports( array(
-					    'methods' => array(
-					        'resize',
-					        'save'
-					    )
-					) );
-					if ( true === $img_editor_test && is_writable($basedir) )
-					{
-						// Get the image editor
-						$image_editor = wp_get_image_editor( $filename );
-						if (! is_wp_error($image_editor) )
-						{
-							// Create thumbnail filename
-							$thumbname = $image_editor->generate_filename( 'thumb' );
-							// Test if thumbnail exists
-							$thumb_exists = file_exists($thumbname);
-							if ( $thumb_exists ) $thumbsize = getimagesize( $thumbname );
-	
-							// If no thumbnail, or the size has changed, generate a new one
-							if (! $thumb_exists || $thumbsize[0] != $width || $thumbsize[1] != $height )
-							{
-								$image_editor->resize( $width, $height, $crop );
-								$resized = $image_editor->save($thumbname);
-								if (! is_wp_error($resized) )
-								{
-									$pathinfo  = pathinfo($file);
-									$image_url = $pathinfo['dirname'] . '/' . $resized['file'];
-								}
-							}
-							// Otherwise use the existing file
-							else
-							{
-								$image_url = str_replace($basedir, $baseurl, $thumbname);
-							}
-						}
-					}
-				}
-
-				// If there is no thumbnail at this point, use the file itself
-				if (! $image_url ) $image_url = $file;
-			}
-			// Not a file then get a mimetype icon from WP
-			else
-			{
-				$image_url = wp_mime_type_icon( wp_ext2type($filetype['ext']) );
-			}
-
-			$image = '<span style="display:inline-block; width:' . esc_attr($width) . 'px; height:' . esc_attr($height) . 'px; overflow:hidden;"><img src="' . esc_url($image_url) . '" /></span>';
-
 			ob_start();
 			?>
 			<div class="<?php echo esc_attr(self::PREFIX); ?>_upload_container">
-				<p class="<?php echo esc_attr(self::PREFIX); ?>_upload_link" style="margin:1em 0 0 0;">
-					<a target="_blank" href="<?php echo esc_url($file); ?>" style="border:none; margin:0 1em 0 0;">
-						<?php echo $image; ?>
-					</a>
-					<a target="_blank" href="<?php echo esc_url($file); ?>">
-						<strong><?php echo esc_html( apply_filters(self::PREFIX . '/file/name', $basename) ); ?></strong>
-					</a>
-				</p>
-				<?php if ( apply_filters( self::PREFIX . '/public_file_delete', true ) ) : ?>
+				<?php
+				if (! empty($field['multipleFiles']) ) :
+					$file_array = explode(', ', $field['defaultValue']);
+					if ( $file_array ) :
+						foreach ( $file_array as $file ) :
+							self::create_uploaded_file( $file, $field, $form_id );
+						endforeach;
+					endif;
+				else :
+					self::create_uploaded_file( $field['defaultValue'], $field, $form_id );
+				endif;
+
+				if ( apply_filters( self::PREFIX . '/public_file_delete', true ) ) : ?>
 					<a class="<?php echo esc_attr(self::PREFIX); ?>_delete_link" data-post_id="<?php echo esc_attr(self::$post->ID); ?>" data-form_id="<?php echo esc_attr($form_id); ?>" data-meta="<?php echo esc_attr($field['postCustomFieldName']); ?>" data-featured="0" href="#<?php _e("delete_requires_javascript", self::PREFIX); ?>" title="<?php _e("Delete Upload", self::PREFIX); ?>">
 						<?php _e("Delete", self::PREFIX); ?>
 					</a>
@@ -774,6 +693,98 @@ class gform_update_post
 	}
 
 	/**
+	 * Create an upload.
+	 *
+	 * @author  Jake Snyder
+	 * @since	1.2.9
+	 * @return	void
+	 */
+	public static function create_uploaded_file( $file, $field, $form_id )
+	{
+		$basename    = basename($file);
+		$filetype    = wp_check_filetype( $basename );
+		$mime        = $filetype['type'];
+
+		$width       = apply_filters(self::PREFIX . '/file/width', self::$settings['file_width']);
+		$height      = apply_filters(self::PREFIX . '/file/height', self::$settings['file_height']);
+
+		// If this is an image, set up and create a thumbnail
+		if ( 'image/' == substr($mime, 0, 6) )
+		{
+			if ( apply_filters(self::PREFIX . '/image/resize', true) )
+			{
+				// Get settings for image thumb
+				$width       = apply_filters(self::PREFIX . '/image/width', $width);
+				$height      = apply_filters(self::PREFIX . '/image/height', $height);
+				$crop        = apply_filters(self::PREFIX . '/image/crop', true);
+
+				// Create the file local path
+				$basedir	= GFFormsModel::get_upload_path($form_id);
+				$baseurl	= GFFormsModel::get_upload_url($form_id);
+				$filename   = str_replace($baseurl, $basedir, $file);
+
+				// Make sure the server supports resize and save
+				$img_editor_test = wp_image_editor_supports( array(
+				    'methods' => array(
+				        'resize',
+				        'save'
+				    )
+				) );
+				if ( true === $img_editor_test && is_writable($basedir) )
+				{
+					// Get the image editor
+					$image_editor = wp_get_image_editor( $filename );
+					if (! is_wp_error($image_editor) )
+					{
+						// Create thumbnail filename
+						$thumbname = $image_editor->generate_filename( 'thumb' );
+						// Test if thumbnail exists
+						$thumb_exists = file_exists($thumbname);
+						if ( $thumb_exists ) $thumbsize = getimagesize( $thumbname );
+
+						// If no thumbnail, or the size has changed, generate a new one
+						if (! $thumb_exists || $thumbsize[0] != $width || $thumbsize[1] != $height )
+						{
+							$image_editor->resize( $width, $height, $crop );
+							$resized = $image_editor->save($thumbname);
+							if (! is_wp_error($resized) )
+							{
+								$pathinfo  = pathinfo($file);
+								$image_url = $pathinfo['dirname'] . '/' . $resized['file'];
+							}
+						}
+						// Otherwise use the existing file
+						else
+						{
+							$image_url = str_replace($basedir, $baseurl, $thumbname);
+						}
+					}
+				}
+			}
+
+			// If there is no thumbnail at this point, use the file itself
+			if (! $image_url ) $image_url = $file;
+		}
+		// Not a file then get a mimetype icon from WP
+		else
+		{
+			$image_url = wp_mime_type_icon( wp_ext2type($filetype['ext']) );
+		}
+
+		$image = '<span style="display:inline-block; width:' . esc_attr($width) . 'px; height:' . esc_attr($height) . 'px; overflow:hidden;"><img src="' . esc_url($image_url) . '" /></span>'; ?>
+		<p class="<?php echo esc_attr(self::PREFIX); ?>_upload_link" style="margin:1em 0 0 0;">
+			<a target="_blank" href="<?php echo esc_url($file); ?>" style="border:none; margin:0 1em 0 0;">
+				<?php echo $image; ?>
+			</a>
+			<a target="_blank" href="<?php echo esc_url($file); ?>">
+				<strong><?php echo esc_html( apply_filters(self::PREFIX . '/file/name', $basename) ); ?></strong>
+			</a>
+		</p>
+		<?php
+		#return ob_get_clean();
+	}
+
+	/**
 	 * Add Request Field to Form
 	 *
 	 * This field will trigger the post data updates when their isn't a GET variable.
@@ -781,7 +792,6 @@ class gform_update_post
 	 * @author  Kevin Miller
 	 * @author  Jake Snyder
 	 * @date	22/08/13
-	 *
 	 * @type	filter
 	 */
 	public static function gform_form_tag( $form_tag, $form )
@@ -797,7 +807,6 @@ class gform_update_post
 	 *
 	 * @author  Kevin Miller
 	 * @date	22/08/13
-	 *
 	 * @type	filter
 	 */
 	public static function gform_pre_render( $form )
@@ -817,11 +826,11 @@ class gform_update_post
 				elseif ( 'post_custom_field' == $field_type && isset($meta[$field['postCustomFieldName']]) )
 				{
 					$multi_fields = array('multiselect', 'checkbox', 'list');
-					if ( in_array($field['inputType'], $multi_fields) )
+					if ( in_array($field['inputType'], $multi_fields) || ! empty($field['multipleFiles']) ) {
 						$value = apply_filters( self::PREFIX . '_multi_fields', $meta[ $field['postCustomFieldName'] ] );
-					else
+					} else {
 						$value = end($meta[ $field['postCustomFieldName'] ]);
-						
+					}
 					$field = self::populate_element($field, $field['inputType'], $value);
 				}
 				elseif ( isset(self::$post->taxonomies[$field_type]) )
@@ -829,10 +838,11 @@ class gform_update_post
 					$value = array();
 					foreach ( self::$post->taxonomies[$field_type] as $object )
 					{
-						if ( 'post_tags' == $field_type )
+						if ( 'post_tags' == $field_type ) {
 							$value[] = $object->name;
-						else
+						} else {
 							$value[] = $object->term_id;
+						}
 					}
 
 					$field = self::populate_element($field, $field_type, $value);
@@ -854,7 +864,9 @@ class gform_update_post
 				{
 					foreach ( $field['conditionalLogic']['rules'] as $rule )
 					{
-						if (! $form['conditional'] ) $form['conditional'] = array();
+						if (! $form['conditional'] ) {
+							$form['conditional'] = array();
+						}
 						$form['conditional'][] = $rule['fieldId'];
 					}
 				}
@@ -871,7 +883,6 @@ class gform_update_post
 	 *
 	 * @author  Kevin Miller
 	 * @author  Jake Snyder
-	 *
 	 * @param	array	$field
 	 * @param	string	$field_type
 	 * @param	mixed	$value
@@ -1000,7 +1011,6 @@ class gform_update_post
 	 * @author  Kevin Miller
 	 * @author  Jake Snyder
 	 * @date	22/08/13
-	 *
 	 * @type	action
 	 */
 	public static function gform_post_data( $post_data, $form )
@@ -1018,7 +1028,7 @@ class gform_update_post
 				}
 
 				// if the field is specifically not unique and is not part of the unique array
-				if ( isset( $field['postCustomFieldUnique'] ) && false === $field['postCustomFieldUnique'] && !in_array( $field['inputType'], $always_unique ) ) {
+				if ( isset( $field['postCustomFieldUnique'] ) && false === $field['postCustomFieldUnique'] && (! in_array($field['inputType'], $always_unique) || ! empty($field['multipleFiles'])) ) {
 					continue;
 				}
 
@@ -1072,7 +1082,6 @@ class gform_update_post
 	 *
 	 * @author  Jake Snyder
 	 * @date	22/08/13
-	 *
 	 * @return	void
 	 */
 	public static function current_user_can( $post_id=false )
@@ -1133,7 +1142,6 @@ class gform_update_post
 	 * @author  Kevin Miller
 	 * @author  Jake Snyder
 	 * @type	action
-	 *
 	 * @return	void
 	 */
 	public function gform_field_standard_settings( $position, $form_id )
@@ -1161,7 +1169,6 @@ class gform_update_post
 	 * @author  Kevin Miller
 	 * @author  Jake Snyder
 	 * @type	action
-	 *
 	 * @return	void
 	 */
 	public function gform_editor_js()
@@ -1204,7 +1211,6 @@ class gform_update_post
 	 * @author  Kevin Miller
 	 * @author  Jake Snyder
 	 * @type	filter
-	 *
 	 * @return	void
 	 */
 	public function gform_tooltips($tooltips)
