@@ -55,14 +55,12 @@ We worked with Rocketgenius, makers of Gravity Forms, to get a small upgrade add
 1. At the heart, it is pretty similar to how it was, but now there is a nonce required to activate it.
 2. So you should use the action to create your links.
 
-`
-do_action('gform_update_post/edit_link');
+`do_action('gform_update_post/edit_link');`
 
-do_action('gform_update_post/edit_link', array(
+`do_action('gform_update_post/edit_link', array(
 	'post_id' => $post->ID,
 	'url'     => home_url('/edit_post/')
-) );
-`
+) );`
 
 **Arguments (query string or array)**
 
@@ -74,35 +72,27 @@ do_action('gform_update_post/edit_link', array(
 ### Get just the URL
 
 This will return a basic edit url
-`
-apply_filters('gform_update_post/edit_url', '');
-`
+`apply_filters('gform_update_post/edit_url', '');`
+
 Specify post to edit (post_id) and post that holds the edit form (url)
-`
-apply_filters('gform_update_post/edit_url', 1, home_url('/edit_post/'));
-`
+`apply_filters('gform_update_post/edit_url', 1, home_url('/edit_post/'));`
 
 ### Shortcode to show the edit link
 
-`
-[gform_update_post_edit_link]
-`
+`[gform_update_post_edit_link]`
+
 Specify post to edit (post_id) and post that holds the edit form (url)
-`
-[gform_update_post_edit_link post_id=1 url=6]
-`
+`[gform_update_post_edit_link post_id=1 url=6]`
 
 ## IN TEMPLATE
 
 You can use the action to force a form show a specific post:
 
-`
-do_action('gform_update_post/setup_form');
+`do_action('gform_update_post/setup_form');
 
 do_action('gform_update_post/setup_form', $post->ID);
 
-do_action('gform_update_post/setup_form', array('post_id' => $post->ID, 'form_id' => $form_id));
-`
+do_action('gform_update_post/setup_form', array('post_id' => $post->ID, 'form_id' => $form_id));`
 
 **Parameters**
 
