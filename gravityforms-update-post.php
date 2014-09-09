@@ -3,7 +3,7 @@
 Plugin Name: Gravity Forms: Post Updates
 Plugin URI: http://bitbucket.org/jupitercow/gravity-forms-update-post
 Description: Allow Gravity Forms to update post Content and the meta data associated with it. Based off the original version by Kevin Miller, this version removed delete functionality, fixed a few bugs, and adds support for file uploads.
-Version: 1.2.11
+Version: 1.2.12
 Author: Jake Snyder
 Author URI: http://Jupitercow.com/
 Contributer: p51labs
@@ -116,22 +116,19 @@ class gform_update_post
 	 */
 	public static function gf_shortcode_atts( $out, $pairs, $atts )
 	{
-		if ( isset($atts['update']) )
+		if ( isset($atts['update']) && is_numeric($atts['update']) )
 		{
-			if ( is_numeric($atts['update']) )
-			{
-				do_action( self::PREFIX . '/setup_form', array('form_id'=>$atts['id'], 'post_id'=>$atts['update']) );
-			}
-			elseif ( 'false' == $atts['update'] )
-			{
-				remove_filter( 'gform_form_tag', array(__CLASS__, 'gform_form_tag') );
-				remove_filter( 'gform_pre_render_' . $atts['id'], array(__CLASS__, 'gform_pre_render') );
-				remove_filter( 'gform_pre_render', array(__CLASS__, 'gform_pre_render') );
-			}
+			do_action( self::PREFIX . '/setup_form', array('form_id'=>$atts['id'], 'post_id'=>$atts['update']) );
 		}
 		elseif ( in_array('update', $atts) )
 		{
 			do_action( self::PREFIX . '/setup_form', array('form_id'=>$atts['id']) );
+		}
+		else
+		{
+			remove_filter( 'gform_form_tag', array(__CLASS__, 'gform_form_tag'), 50 );
+			remove_filter( 'gform_pre_render_' . $atts['id'], array(__CLASS__, 'gform_pre_render') );
+			remove_filter( 'gform_pre_render', array(__CLASS__, 'gform_pre_render') );
 		}
 
 		return $out;
@@ -837,6 +834,7 @@ class gform_update_post
 	 */
 	public static function gform_form_tag( $form_tag, $form )
 	{
+echo "TEST";
 		$form_tag .= '<input type="hidden" name="' . apply_filters(self::PREFIX . '/request_id', self::$settings['request_id']) . '" value="' . self::$post->ID . '" class="gform_hidden" />';
 		return $form_tag;
 	}
@@ -1082,6 +1080,7 @@ class gform_update_post
 
 			$post_data['ID']             = self::$post->ID;
 			$post_data['post_author']    = self::$post->post_author;
+			$post_data['post_status']    = self::$post->post_status;
 			$post_data['post_date']      = self::$post->post_date;
 			$post_data['post_date_gmt']  = self::$post->post_date_gmt;
 			$post_data['comment_status'] = self::$post->comment_status;
