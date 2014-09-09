@@ -4,7 +4,7 @@ Donate link: https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=jacob
 Tags: gravity forms, update posts, frontend, front end
 Requires at least: 3.6.1
 Tested up to: 4.0
-Stable tag: 1.2.10
+Stable tag: 1.2.11
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -142,7 +142,7 @@ Image fields are only supported if they are the "Featured Image". Otherwise you 
 
 ## 1.2.11 - 2014-09-09
 
-- Locked updates to current form id instead of all forms on page.
+- Allow updates to be locked to current form id instead of all forms on page.
 
 ## 1.2.10 - 2014-09-07
 
