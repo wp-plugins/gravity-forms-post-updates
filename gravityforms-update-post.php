@@ -3,7 +3,7 @@
 Plugin Name: Gravity Forms: Post Updates
 Plugin URI: http://bitbucket.org/jupitercow/gravity-forms-update-post
 Description: Allow Gravity Forms to update post Content and the meta data associated with it. Based off the original version by Kevin Miller, this version removed delete functionality, fixed a few bugs, and adds support for file uploads.
-Version: 1.2.10
+Version: 1.2.11
 Author: Jake Snyder
 Author URI: http://Jupitercow.com/
 Contributer: p51labs
@@ -118,11 +118,20 @@ class gform_update_post
 	{
 		if ( isset($atts['update']) )
 		{
-			do_action( self::PREFIX . '/setup_form', $atts['update'] );
+			if ( is_numeric($atts['update']) )
+			{
+				do_action( self::PREFIX . '/setup_form', array('form_id'=>$atts['id'], 'post_id'=>$atts['update']) );
+			}
+			elseif ( 'false' == $atts['update'] )
+			{
+				remove_filter( 'gform_form_tag', array(__CLASS__, 'gform_form_tag') );
+				remove_filter( 'gform_pre_render_' . $atts['id'], array(__CLASS__, 'gform_pre_render') );
+				remove_filter( 'gform_pre_render', array(__CLASS__, 'gform_pre_render') );
+			}
 		}
 		elseif ( in_array('update', $atts) )
 		{
-			do_action( self::PREFIX . '/setup_form' );
+			do_action( self::PREFIX . '/setup_form', array('form_id'=>$atts['id']) );
 		}
 
 		return $out;
@@ -509,8 +518,24 @@ class gform_update_post
 	 * @param	int		$post_id id of the post you want to edit
 	 * @return	void
 	 */
-	public static function setup_form( $post_id=false )
+	public static function setup_form( $args=array() )
 	{
+		if ( is_numeric($args) ) {
+			$post_id = $args;
+		}
+		elseif ( is_array($args) )
+		{
+			$defaults = array(
+				'post_id' => 0,
+				'form_id' => 0,
+			);
+			$args = wp_parse_args( $args, $defaults );
+			extract($args);
+		}
+		else {
+			return false;
+		}
+
 		if (! $post_id && ! empty($GLOBALS['post']->ID) ) $post_id = $GLOBALS['post']->ID;
 
 		self::get_post_object($post_id);
@@ -526,8 +551,16 @@ class gform_update_post
 			// Add the request_id to the form as a hidden field. This triggers our post data addition that will update the post
 			add_filter( 'gform_form_tag',          array(__CLASS__, 'gform_form_tag'), 50, 2 );
 
-			// Add the existing information to the form
-			add_filter( 'gform_pre_render',        array(__CLASS__, 'gform_pre_render') );
+			if ( $form_id )
+			{
+				// Add the existing information to the form
+				add_filter( 'gform_pre_render_' . $form_id,        array(__CLASS__, 'gform_pre_render') );
+			}
+			else
+			{
+				// Add the existing information to the form
+				add_filter( 'gform_pre_render',        array(__CLASS__, 'gform_pre_render') );
+			}
 
 			// Updates the post data with post id, so post gets updated instead of creating a new one
 			add_action( 'gform_post_data',         array(__CLASS__, 'gform_post_data'), 10, 2 );

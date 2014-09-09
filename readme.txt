@@ -21,7 +21,7 @@ If you have a bug or feature request, submit it there: https://bitbucket.org/jup
 This started as an update to the Gravity Forms Update Post plugin developed by p51labs here.
 It has evolved into a completely rewritten plugin that streamlines the system, adds some new support for more fields, and adds more interfaces and filters.
 
-= Compatibility =
+## Compatibility
 
 Here is how it does NOT really support the original version:
 
@@ -30,7 +30,7 @@ Here is how it does NOT really support the original version:
 
 So it isn't very compatible. Plain and simple, you will have to change something to start using this plugin if you were using the original, but I don't think it will be very hard and I did keep the original query variable that was used before.
 
-= New Features =
+## New Features
 
 *   Supports custom field file uploading and deletion with thumbnails or mime type icons for existing items.
 *   Fixed a bugs on multi selects and checkboxes.
@@ -41,13 +41,73 @@ So it isn't very compatible. Plain and simple, you will have to change something
 *   Adds a really basic shortcode to setup a form (UPDATE: This is still supported, but it is better to use the addition, below, to the gravityform shortcode).
 *   Adds an additional attribute to the gravityform shortcode: "update"
 
-= SHORTCODE =
+## SHORTCODE
 
-`[gravityforms id="1" update] // Loads current post for editing`
+`[gravityform id="1" update] // Loads current post for editing`
 
-`[gravityforms id="1" update="34"] // Loads post where ID=34 for editing`
+`[gravityform id="1" update="34"] // Loads post where ID=34 for editing`
 
 We worked with Rocketgenius, makers of Gravity Forms, to get a small upgrade added that allows us to extend their shortcode, so now you can simply add the "update" attribute to the normal "gravityform" shortcode. If you only add "update", it will load the current post in to update. If you add an integer to the update attribute, it will use that to load a post by its ID.
+
+
+## URL QUERY VARIABLE
+
+1. At the heart, it is pretty similar to how it was, but now there is a nonce required to activate it.
+2. So you should use the action to create your links.
+
+```php
+do_action('gform_update_post/edit_link');
+
+do_action('gform_update_post/edit_link', array(
+	'post_id' => $post->ID,
+	'url'     => home_url('/edit_post/')
+) );
+```
+
+**Arguments (query string or array)**
+
+* `post_id` (int) (optional) The id of the post you want to edit. Default: global $post->ID
+* `url` (string|int) (optional) Either the full url of the page where your edit form resides, or an id for the page/post where the edit form resides. Default: get_permalink()
+* `text` (string) (optional) The link text. Default: "Edit Post"
+* `title` (string) (optional) The title attribute of the anchor tag. Default: (text) parameter
+
+### Get just the URL
+
+This will return a basic edit url
+```php
+apply_filters('gform_update_post/edit_url', '');
+```
+Specify post to edit (post_id) and post that holds the edit form (url)
+```php
+apply_filters('gform_update_post/edit_url', 1, home_url('/edit_post/'));
+```
+
+### Shortcode to show the edit link
+
+```php
+[gform_update_post_edit_link]
+```
+Specify post to edit (post_id) and post that holds the edit form (url)
+```php
+[gform_update_post_edit_link post_id=1 url=6]
+```
+
+## IN TEMPLATE
+
+You can use the action to force a form show a specific post:
+
+```php
+do_action('gform_update_post/setup_form');
+
+do_action('gform_update_post/setup_form', $post->ID);
+
+do_action('gform_update_post/setup_form', array('post_id' => $post->ID, 'form_id' => $form_id));
+```
+
+**Parameters**
+
+* `post_id` (int|array) (optional) The id of the post you want to edit or an array with post id and/or form id. This allows you to specify the form id, so that update functionality does not get applied to other forms on the page. Default: global $post->ID
+
 
 == Installation ==
 
@@ -79,6 +139,10 @@ Image fields are only supported if they are the "Featured Image". Otherwise you 
 1. A form on the front end. This just demonstrates the image/file capabilities.
 
 == Changelog ==
+
+## 1.2.11 - 2014-09-09
+
+- Locked updates to current form id instead of all forms on page.
 
 ## 1.2.10 - 2014-09-07
 
