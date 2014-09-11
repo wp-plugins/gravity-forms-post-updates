@@ -3,7 +3,7 @@
 Plugin Name: Gravity Forms: Post Updates
 Plugin URI: http://bitbucket.org/jupitercow/gravity-forms-update-post
 Description: Allow Gravity Forms to update post Content and the meta data associated with it. Based off the original version by Kevin Miller, this version removed delete functionality, fixed a few bugs, and adds support for file uploads.
-Version: 1.2.1
+Version: 1.2.13
 Author: Jake Snyder
 Author URI: http://Jupitercow.com/
 Contributer: p51labs
@@ -47,7 +47,7 @@ class gform_update_post
 	 * @since 	1.2
 	 * @var 	string
 	 */
-	const VERSION = '1.2';
+	const VERSION = '1.2.6';
 
 	/**
 	 * Settings
@@ -116,13 +116,19 @@ class gform_update_post
 	 */
 	public static function gf_shortcode_atts( $out, $pairs, $atts )
 	{
-		if ( isset($atts['update']) )
+		if ( isset($atts['update']) && is_numeric($atts['update']) )
 		{
-			do_action( self::PREFIX . '/setup_form', $atts['update'] );
+			do_action( self::PREFIX . '/setup_form', array('form_id'=>$atts['id'], 'post_id'=>$atts['update']) );
 		}
 		elseif ( in_array('update', $atts) )
 		{
-			do_action( self::PREFIX . '/setup_form' );
+			do_action( self::PREFIX . '/setup_form', array('form_id'=>$atts['id']) );
+		}
+		else
+		{
+			remove_filter( 'gform_form_tag', array(__CLASS__, 'gform_form_tag'), 50 );
+			remove_filter( 'gform_pre_render_' . $atts['id'], array(__CLASS__, 'gform_pre_render') );
+			remove_filter( 'gform_pre_render', array(__CLASS__, 'gform_pre_render') );
 		}
 
 		return $out;
@@ -168,13 +174,25 @@ class gform_update_post
 			add_filter( 'gform_field_validation',        array(__CLASS__, 'required_upload_field_validation'), 10, 4 );
 
 			// Adds a really basic shortcode to set the plugin in action
-			add_shortcode( self::PREFIX,                array(__CLASS__, 'shortcode') );
+			add_shortcode( self::PREFIX,                 array(__CLASS__, 'shortcode') );
+
 
 			// Add an action to set up the form
-			add_action( self::PREFIX . '/setup_form',   array(__CLASS__, 'setup_form') );
+			add_action( self::PREFIX . '/setup_form',    array(__CLASS__, 'setup_form') );
+
+
+			// Add a filter to get an edit url
+			add_filter( self::PREFIX . '/edit_url',      array(__CLASS__, 'get_edit_url'), 10, 2 );
+
+			// Add a filter to get an edit link
+			add_filter( self::PREFIX . '/get_edit_link', array(__CLASS__, 'get_edit_link'), 99 );
+
+			// Adds a really basic shortcode to set the plugin in action
+			add_shortcode( self::PREFIX . '_edit_link',  array(__CLASS__, 'shortcode_edit_link') );
 
 			// Add an action to create a link
-			add_action( self::PREFIX . '/edit_link',    array(__CLASS__, 'edit_link') );
+			add_action( self::PREFIX . '/edit_link',     array(__CLASS__, 'edit_link') );
+
 
 			// Ajax file delete
 			add_action( 'wp_ajax_' . self::PREFIX . '_delete_upload', array(__CLASS__, 'ajax_delete_upload') );
@@ -250,7 +268,6 @@ class gform_update_post
 	 *
 	 * @author  Jake Snyder
 	 * @date	12/09/13
-	 *
 	 * @return	bool
 	 */
 	public static function test_requirements()
@@ -268,7 +285,6 @@ class gform_update_post
 	 *
 	 * @author  Jake Snyder
 	 * @date	12/08/13
-	 *
 	 * @return	void
 	 */
     public static function admin_warnings()
@@ -307,7 +323,6 @@ class gform_update_post
 	 *
 	 * @author  Jake Snyder
 	 * @date	22/08/13
-	 *
 	 * @return	void	
 	 */
 	public static function process_request()
@@ -327,35 +342,13 @@ class gform_update_post
 	}
 
 	/**
-	 * Create a simple short code to setup a form
-	 *
-	 * Set up a form on a post or page to be editable.
-	 *
-	 * @author  Jake Snyder
-	 * @date	12/09/13
-	 *
-	 * @type	shortcode
-	 *
-	 * @return	void	
-	 */
-	public static function shortcode( $atts )
-	{
-		extract( shortcode_atts( array(
-			'post_id' => false,
-		), $atts ) );
-
-		do_action( self::PREFIX . '/setup_form', $post_id );
-	}
-
-	/**
 	 * Get the Post Object
 	 *
 	 * Used to get the post from id along with taxonomies.
 	 *
 	 * @author  Kevin Miller
 	 * @author  Jake Snyder
-	 * @date	22/08/13
-	 *
+	 * @date	22/08/13]
 	 * @param	int $post_id
 	 * @return	void
 	 */
@@ -395,12 +388,11 @@ class gform_update_post
 	 *
 	 * @author  Jake Snyder
 	 * @date	22/08/13
-	 *
 	 * @param	int		$post_id ID of the post you want to edit
 	 * @param	string	$url By default the permalink of the post that you want to edit is used, use this to send to a different page to edit the post whose id is provided
 	 * @return	void
 	 */
-	public static function edit_url( $post_id=false, $url=false )
+	public static function get_edit_url( $post_id=false, $url=false )
 	{
 		if (! $post_id && ! empty($GLOBALS['post']) ) $post_id = $GLOBALS['post']->ID;
 
@@ -411,6 +403,48 @@ class gform_update_post
 
 		$request_id = apply_filters(self::PREFIX . '/request_id', self::$settings['request_id']);
 		return add_query_arg( array($request_id => $post_id, 'nonce' => wp_create_nonce(self::$settings['nonce_update'])), $url );
+	}
+
+	/**
+	 * Build Edit Link and return
+	 *
+	 * Create anchor link with the edit URI. Uses self::edit_url to create the URI.
+	 *
+	 * Arguments:
+	 *	post_id (int) is the id of the post you want to edit
+	 *	url (string|int) is either the full url of the page where your edit form resides, or an id for the page where the edit form resides
+	 *	test (string) is the link text
+	 *	title (string) is the title attribute of the anchor tag
+	 *
+	 * @author  Jake Snyder
+	 * @since   1.2.7
+	 * @param	array|string $args The arguments to use when creating a link
+	 * @return	void
+	 */
+	public static function get_edit_link( $args=array() )
+	{
+		$defaults = array(
+			'post_id' => false,
+			'url'     => false,
+			'text'    => __("Edit Post", self::PREFIX),
+			'title'   => false,
+			'class'   => '',
+		);
+		$args = wp_parse_args( $args, $defaults );
+
+		$output = '';
+
+		// Get the current post id, if none is provided
+		if (! $args['post_id'] && ! empty($GLOBALS['post']->ID) ) $args['post_id'] = $GLOBALS['post']->ID;
+
+		if ( self::current_user_can( $args['post_id'] ) )
+		{
+			// Add the link text to the title if no link title is specified
+			if (! $args['title'] ) $args['title'] = $args['text'];
+			$output .= '<a class="' . esc_attr(self::PREFIX) . '_link' . ($args['class'] ? ' ' . esc_attr($args['class']) : '') . '" href="' . esc_attr( apply_filters(self::PREFIX.'/edit_url', $args['post_id'], $args['url']) ) . '" title="' . esc_attr($args['title']) . '">' . esc_html($args['text']) . '</a>';
+		}
+
+		return $output;
 	}
 
 	/**
@@ -426,30 +460,49 @@ class gform_update_post
 	 *
 	 * @author  Jake Snyder
 	 * @date	12/09/13
-	 *
 	 * @param	array|string $args The arguments to use when creating a link
 	 * @return	void
 	 */
 	public static function edit_link( $args=array() )
 	{
-		$defaults = array(
+		echo apply_filters( self::PREFIX . '/get_edit_link', $args );
+	}
+
+	/**
+	 * Create a link to edit a post
+	 *
+	 * @author  Jake Snyder
+	 * @since   1.2.6
+	 * @type	shortcode
+	 * @return	void	
+	 */
+	public static function shortcode_edit_link( $atts )
+	{
+		$args = shortcode_atts( array(
 			'post_id' => false,
-			'url'     => false,
-			'text'    => __("Edit Post", self::PREFIX),
-			'title'   => false
-		);
-		$args = wp_parse_args( $args, $defaults );
+			'url' => false
+		), $atts );
 
-		// Get the current post id, if none is provided
-		if (! $args['post_id'] && ! empty($GLOBALS['post']->ID) ) $args['post_id'] = $GLOBALS['post']->ID;
+		return apply_filters( self::PREFIX . '/get_edit_link', $args );
+	}
 
-		if ( self::current_user_can( $args['post_id'] ) )
-		{
-			// Add the link text to the title if no link title is specified
-			if (! $args['title'] ) $args['title'] = $args['text'];
-	
-			echo '<a class="' . esc_attr(self::PREFIX) . '_link" href="' . esc_attr(self::edit_url($args['post_id'], $args['url'])) . '" title="' . esc_attr($args['title']) . '">' . esc_html($args['text']) . '</a>';
-		}
+	/**
+	 * Create a simple short code to setup a form
+	 *
+	 * Set up a form on a post or page to be editable.
+	 *
+	 * @author  Jake Snyder
+	 * @date	12/09/13]
+	 * @type	shortcode
+	 * @return	void	
+	 */
+	public static function shortcode( $atts )
+	{
+		extract( shortcode_atts( array(
+			'post_id' => false,
+		), $atts ) );
+
+		do_action( self::PREFIX . '/setup_form', $post_id );
 	}
 
 	/**
@@ -459,12 +512,27 @@ class gform_update_post
 	 *
 	 * @author  Jake Snyder
 	 * @date	22/08/13
-	 *
 	 * @param	int		$post_id id of the post you want to edit
 	 * @return	void
 	 */
-	public static function setup_form( $post_id=false )
+	public static function setup_form( $args=array() )
 	{
+		if ( is_numeric($args) ) {
+			$post_id = $args;
+		}
+		elseif ( is_array($args) )
+		{
+			$defaults = array(
+				'post_id' => 0,
+				'form_id' => 0,
+			);
+			$args = wp_parse_args( $args, $defaults );
+			extract($args);
+		}
+		else {
+			return false;
+		}
+
 		if (! $post_id && ! empty($GLOBALS['post']->ID) ) $post_id = $GLOBALS['post']->ID;
 
 		self::get_post_object($post_id);
@@ -480,8 +548,16 @@ class gform_update_post
 			// Add the request_id to the form as a hidden field. This triggers our post data addition that will update the post
 			add_filter( 'gform_form_tag',          array(__CLASS__, 'gform_form_tag'), 50, 2 );
 
-			// Add the existing information to the form
-			add_filter( 'gform_pre_render',        array(__CLASS__, 'gform_pre_render') );
+			if ( $form_id )
+			{
+				// Add the existing information to the form
+				add_filter( 'gform_pre_render_' . $form_id,        array(__CLASS__, 'gform_pre_render') );
+			}
+			else
+			{
+				// Add the existing information to the form
+				add_filter( 'gform_pre_render',        array(__CLASS__, 'gform_pre_render') );
+			}
 
 			// Updates the post data with post id, so post gets updated instead of creating a new one
 			add_action( 'gform_post_data',         array(__CLASS__, 'gform_post_data'), 10, 2 );
@@ -496,7 +572,6 @@ class gform_update_post
 	 *
 	 * @author  Jake Snyder
 	 * @date	22/08/13
-	 *
 	 * @return	void
 	 */
 	public static function ajax_delete_upload()
@@ -506,6 +581,7 @@ class gform_update_post
 			'nonce' => '',
 			'post_id' => 0,
 			'form_id' => 0,
+			'file' => false,
 			'featured' => 0,
 			'meta' => ''
 		);
@@ -527,7 +603,7 @@ class gform_update_post
 		}
 		elseif ( $options['meta'] )
 		{
-			self::delete_upload( $options['post_id'], $options['form_id'], $options['meta'] );
+			self::delete_upload( $options );
 		}
 		else
 		{
@@ -542,17 +618,16 @@ class gform_update_post
 	 *
 	 * @author  Jake Snyder
 	 * @date	22/08/13
-	 *
 	 * @return	void
 	 */
-	public static function delete_upload( $post_id, $form_id, $meta )
+	public static function delete_upload( $options )
 	{
-		$file     = get_post_meta( $post_id, $meta, true );
+		$file     = ( $options['file'] ) ? $options['file'] : get_post_meta( $options['post_id'], $options['meta'], true );
 		$filetype = wp_check_filetype( $file );
 
 		// get the thumbnail name
-		$path_to_file = GFFormsModel::get_upload_path($form_id);
-		$url_to_file  = GFFormsModel::get_upload_url($form_id);
+		$path_to_file = GFFormsModel::get_upload_path($options['form_id']);
+		$url_to_file  = GFFormsModel::get_upload_url($options['form_id']);
 		$file_path    = str_replace($url_to_file, $path_to_file, $file);
 
 		// Delete the file
@@ -572,7 +647,11 @@ class gform_update_post
 		}
 
 		// Remove the meta from the post
-		return delete_post_meta( $post_id, $meta );
+		if ( $options['file'] ) {
+			return delete_post_meta( $options['post_id'], $options['meta'], $options['file'] );
+		} else {
+			return delete_post_meta( $options['post_id'], $options['meta'] );
+		}
 	}
 
 	/**
@@ -582,7 +661,6 @@ class gform_update_post
 	 *
 	 * @author  Jake Snyder
 	 * @date	22/08/13
-	 *
 	 * @type	filter
 	 */
 	public static function gform_field_content( $content, $field, $value, $lead_id, $form_id )
@@ -622,100 +700,126 @@ class gform_update_post
 		}
 		elseif (! empty($field['inputType']) && 'fileupload' == $field['inputType'] && ! empty($field['defaultValue']) )
 		{
-			$file        = $field['defaultValue'];
-			$basename    = basename($file);
-			$filetype    = wp_check_filetype( $basename );
-			$mime        = $filetype['type'];
-
-			$width       = apply_filters(self::PREFIX . '/file/width', self::$settings['file_width']);
-			$height      = apply_filters(self::PREFIX . '/file/height', self::$settings['file_height']);
-
-			// If this is an image, set up and create a thumbnail
-			if ( 'image/' == substr($mime, 0, 6) )
+			if (! empty($field['multipleFiles']) )
 			{
-				if ( apply_filters(self::PREFIX . '/image/resize', true) )
+				$content .= '<a class="' . esc_attr(self::PREFIX) . '_addmore_link" href="#' . __("requires_javascript", self::PREFIX) . '" title="' . __("Add more uploads", self::PREFIX) . '">' . __("Add more", self::PREFIX) . '</a>';
+				$file_array = explode(', ', $field['defaultValue']);
+				if ( $file_array )
 				{
-					// Get settings for image thumb
-					$width       = apply_filters(self::PREFIX . '/image/width', $width);
-					$height      = apply_filters(self::PREFIX . '/image/height', $height);
-					$crop        = apply_filters(self::PREFIX . '/image/crop', true);
-
-					// Create the file local path
-					$basedir	= GFFormsModel::get_upload_path($form_id);
-					$baseurl	= GFFormsModel::get_upload_url($form_id);
-					$filename   = str_replace($baseurl, $basedir, $file);
-
-					// Make sure the server supports resize and save
-					$img_editor_test = wp_image_editor_supports( array(
-					    'methods' => array(
-					        'resize',
-					        'save'
-					    )
-					) );
-					if ( true === $img_editor_test && is_writable($basedir) )
+					foreach ( $file_array as $file )
 					{
-						// Get the image editor
-						$image_editor = wp_get_image_editor( $filename );
-						if (! is_wp_error($image_editor) )
+						$content .= self::create_uploaded_file( $file, $field, $form_id );
+					}
+				}
+			}
+			else
+			{
+				$content .= self::create_uploaded_file( $field['defaultValue'], $field, $form_id );
+			}
+		}
+		return $content;
+	}
+
+	/**
+	 * Create an upload.
+	 *
+	 * @author  Jake Snyder
+	 * @since	1.2.9
+	 * @return	void
+	 */
+	public static function create_uploaded_file( $file, $field, $form_id )
+	{
+		$basename    = basename($file);
+		$filetype    = wp_check_filetype( $basename );
+		$mime        = $filetype['type'];
+
+		$width       = apply_filters(self::PREFIX . '/file/width', self::$settings['file_width']);
+		$height      = apply_filters(self::PREFIX . '/file/height', self::$settings['file_height']);
+
+		// If this is an image, set up and create a thumbnail
+		if ( 'image/' == substr($mime, 0, 6) )
+		{
+			if ( apply_filters(self::PREFIX . '/image/resize', true) )
+			{
+				// Get settings for image thumb
+				$width       = apply_filters(self::PREFIX . '/image/width', $width);
+				$height      = apply_filters(self::PREFIX . '/image/height', $height);
+				$crop        = apply_filters(self::PREFIX . '/image/crop', true);
+
+				// Create the file local path
+				$basedir	= GFFormsModel::get_upload_path($form_id);
+				$baseurl	= GFFormsModel::get_upload_url($form_id);
+				$filename   = str_replace($baseurl, $basedir, $file);
+
+				// Make sure the server supports resize and save
+				$img_editor_test = wp_image_editor_supports( array(
+				    'methods' => array(
+				        'resize',
+				        'save'
+				    )
+				) );
+				if ( true === $img_editor_test && is_writable($basedir) )
+				{
+					// Get the image editor
+					$image_editor = wp_get_image_editor( $filename );
+					if (! is_wp_error($image_editor) )
+					{
+						// Create thumbnail filename
+						$thumbname = $image_editor->generate_filename( 'thumb' );
+						// Test if thumbnail exists
+						$thumb_exists = file_exists($thumbname);
+						if ( $thumb_exists ) $thumbsize = getimagesize( $thumbname );
+
+						// If no thumbnail, or the size has changed, generate a new one
+						if (! $thumb_exists || $thumbsize[0] != $width || $thumbsize[1] != $height )
 						{
-							// Create thumbnail filename
-							$thumbname = $image_editor->generate_filename( 'thumb' );
-							// Test if thumbnail exists
-							$thumb_exists = file_exists($thumbname);
-							if ( $thumb_exists ) $thumbsize = getimagesize( $thumbname );
-	
-							// If no thumbnail, or the size has changed, generate a new one
-							if (! $thumb_exists || $thumbsize[0] != $width || $thumbsize[1] != $height )
+							$image_editor->resize( $width, $height, $crop );
+							$resized = $image_editor->save($thumbname);
+							if (! is_wp_error($resized) )
 							{
-								$image_editor->resize( $width, $height, $crop );
-								$resized = $image_editor->save($thumbname);
-								if (! is_wp_error($resized) )
-								{
-									$pathinfo  = pathinfo($file);
-									$image_url = $pathinfo['dirname'] . '/' . $resized['file'];
-								}
+								$pathinfo  = pathinfo($file);
+								$image_url = $pathinfo['dirname'] . '/' . $resized['file'];
 							}
-							// Otherwise use the existing file
-							else
-							{
-								$image_url = str_replace($basedir, $baseurl, $thumbname);
-							}
+						}
+						// Otherwise use the existing file
+						else
+						{
+							$image_url = str_replace($basedir, $baseurl, $thumbname);
 						}
 					}
 				}
-
-				// If there is no thumbnail at this point, use the file itself
-				if (! $image_url ) $image_url = $file;
-			}
-			// Not a file then get a mimetype icon from WP
-			else
-			{
-				$image_url = wp_mime_type_icon( wp_ext2type($filetype['ext']) );
 			}
 
-			$image = '<span style="display:inline-block; width:' . esc_attr($width) . 'px; height:' . esc_attr($height) . 'px; overflow:hidden;"><img src="' . esc_url($image_url) . '" /></span>';
-
-			ob_start();
-			?>
-			<div class="<?php echo esc_attr(self::PREFIX); ?>_upload_container">
-				<p class="<?php echo esc_attr(self::PREFIX); ?>_upload_link" style="margin:1em 0 0 0;">
-					<a target="_blank" href="<?php echo esc_url($file); ?>" style="border:none; margin:0 1em 0 0;">
-						<?php echo $image; ?>
-					</a>
-					<a target="_blank" href="<?php echo esc_url($file); ?>">
-						<strong><?php echo esc_html( apply_filters(self::PREFIX . '/file/name', $basename) ); ?></strong>
-					</a>
-				</p>
-				<?php if ( apply_filters( self::PREFIX . '/public_file_delete', true ) ) : ?>
-					<a class="<?php echo esc_attr(self::PREFIX); ?>_delete_link" data-post_id="<?php echo esc_attr(self::$post->ID); ?>" data-form_id="<?php echo esc_attr($form_id); ?>" data-meta="<?php echo esc_attr($field['postCustomFieldName']); ?>" data-featured="0" href="#<?php _e("delete_requires_javascript", self::PREFIX); ?>" title="<?php _e("Delete Upload", self::PREFIX); ?>">
-						<?php _e("Delete", self::PREFIX); ?>
-					</a>
-				<?php endif; ?>
-			</div>
-			<?php
-			$content .= ob_get_clean();
+			// If there is no thumbnail at this point, use the file itself
+			if (! $image_url ) $image_url = $file;
 		}
-		return $content;
+		// Not a file then get a mimetype icon from WP
+		else
+		{
+			$image_url = wp_mime_type_icon( wp_ext2type($filetype['ext']) );
+		}
+
+		$image = '<span style="display:inline-block; width:' . esc_attr($width) . 'px; height:' . esc_attr($height) . 'px; overflow:hidden;"><img src="' . esc_url($image_url) . '" /></span>';
+
+		ob_start();
+		?>
+		<div class="<?php echo esc_attr(self::PREFIX); ?>_upload_container">
+			<p class="<?php echo esc_attr(self::PREFIX); ?>_upload_link" style="margin:1em 0 0 0;">
+				<a target="_blank" href="<?php echo esc_url($file); ?>" style="border:none; margin:0 1em 0 0;">
+					<?php echo $image; ?>
+				</a>
+				<a target="_blank" href="<?php echo esc_url($file); ?>">
+					<strong><?php echo esc_html( apply_filters(self::PREFIX . '/file/name', $basename) ); ?></strong>
+				</a>
+			</p>
+			<?php if ( apply_filters( self::PREFIX . '/public_file_delete', true ) ) : ?>
+				<a class="<?php echo esc_attr(self::PREFIX); ?>_delete_link" data-post_id="<?php echo esc_attr(self::$post->ID); ?>" data-form_id="<?php echo esc_attr($form_id); ?>" data-meta="<?php echo esc_attr($field['postCustomFieldName']); ?>" data-featured="0" href="#<?php _e("delete_requires_javascript", self::PREFIX); ?>" title="<?php _e("Delete Upload", self::PREFIX); ?>">
+					<?php _e("Delete", self::PREFIX); ?>
+				</a>
+			<?php endif; ?>
+		</div>
+		<?php
+		return ob_get_clean();
 	}
 
 	/**
@@ -726,7 +830,6 @@ class gform_update_post
 	 * @author  Kevin Miller
 	 * @author  Jake Snyder
 	 * @date	22/08/13
-	 *
 	 * @type	filter
 	 */
 	public static function gform_form_tag( $form_tag, $form )
@@ -742,7 +845,6 @@ class gform_update_post
 	 *
 	 * @author  Kevin Miller
 	 * @date	22/08/13
-	 *
 	 * @type	filter
 	 */
 	public static function gform_pre_render( $form )
@@ -762,11 +864,11 @@ class gform_update_post
 				elseif ( 'post_custom_field' == $field_type && isset($meta[$field['postCustomFieldName']]) )
 				{
 					$multi_fields = array('multiselect', 'checkbox', 'list');
-					if ( in_array($field['inputType'], $multi_fields) )
-						$value = apply_filters( self::$prefix . '_multi_fields', $meta[ $field['postCustomFieldName'] ] );
-					else
+					if ( in_array($field['inputType'], $multi_fields) || ! empty($field['multipleFiles']) ) {
+						$value = apply_filters( self::PREFIX . '_multi_fields', $meta[ $field['postCustomFieldName'] ] );
+					} else {
 						$value = end($meta[ $field['postCustomFieldName'] ]);
-						
+					}
 					$field = self::populate_element($field, $field['inputType'], $value);
 				}
 				elseif ( isset(self::$post->taxonomies[$field_type]) )
@@ -774,10 +876,11 @@ class gform_update_post
 					$value = array();
 					foreach ( self::$post->taxonomies[$field_type] as $object )
 					{
-						if ( 'post_tags' == $field_type )
+						if ( 'post_tags' == $field_type ) {
 							$value[] = $object->name;
-						else
+						} else {
 							$value[] = $object->term_id;
+						}
 					}
 
 					$field = self::populate_element($field, $field_type, $value);
@@ -799,7 +902,9 @@ class gform_update_post
 				{
 					foreach ( $field['conditionalLogic']['rules'] as $rule )
 					{
-						if (! $form['conditional'] ) $form['conditional'] = array();
+						if (! $form['conditional'] ) {
+							$form['conditional'] = array();
+						}
 						$form['conditional'][] = $rule['fieldId'];
 					}
 				}
@@ -816,7 +921,6 @@ class gform_update_post
 	 *
 	 * @author  Kevin Miller
 	 * @author  Jake Snyder
-	 *
 	 * @param	array	$field
 	 * @param	string	$field_type
 	 * @param	mixed	$value
@@ -834,7 +938,7 @@ class gform_update_post
 				$field['inputName'] = $field_type;
 
 				self::$settings['cat_value'] = $value;
-				add_filter( 'gform_field_value_' . $field['inputName'], array(__CLASS__, 'return_category_field_value') );
+				add_filter( 'gform_field_value_' . $field['inputName'], array(__CLASS__, 'return_category_field_value'), 10, 2 );
 				#add_filter( 'gform_field_value_' . $field['inputName'], function($value) use($value) { return $value; } );
 				break;
 
@@ -843,8 +947,8 @@ class gform_update_post
 				$field['allowsPrepopulate'] = true;
 				$field['inputName'] = $field['populateTaxonomy'];
 
-				self::$settings['tax_value'] = $value;
-				add_filter( 'gform_field_value_' . $field['inputName'], array(__CLASS__, 'return_taxonomy_field_value') );
+				self::$settings['tax_value'][$field['inputName']] = $value;
+				add_filter( 'gform_field_value_' . $field['inputName'], array(__CLASS__, 'return_taxonomy_field_value') , 10, 2 );
 				#add_filter( 'gform_field_value_' . $field['inputName'], function($value) use($value) { return $value; } );
 				break;
 
@@ -901,13 +1005,13 @@ class gform_update_post
 	 * @author  Jake Snyder
 	 * @return	value
 	 */
-	public static function return_category_field_value( $value )
+	public static function return_category_field_value( $value, $field )
 	{
 		return (! empty(self::$settings['cat_value']) ) ? self::$settings['cat_value'] : $value;
 	}
-	public static function return_taxonomy_field_value( $value )
+	public static function return_taxonomy_field_value( $value, $field )
 	{
-		return (! empty(self::$settings['tax_value']) ) ? self::$settings['tax_value'] : $value;
+		return (! empty(self::$settings['tax_value'][$field['inputName']]) ) ? self::$settings['tax_value'][$field['inputName']] : $value;
 	}
 
 	/**
@@ -945,7 +1049,6 @@ class gform_update_post
 	 * @author  Kevin Miller
 	 * @author  Jake Snyder
 	 * @date	22/08/13
-	 *
 	 * @type	action
 	 */
 	public static function gform_post_data( $post_data, $form )
@@ -957,14 +1060,26 @@ class gform_update_post
 			// If a custom field is unique, delete the old value(s) before we proceed
 			foreach ( $form['fields'] as $field )
 			{
-				if ( 'post_custom_field' == $field['type'] && (isset($field['postCustomFieldUnique']) || in_array($field['inputType'], $always_unique)) && ( 'fileupload' != $field['inputType'] || ('fileupload' == $field['inputType'] && ! empty($_FILES['input_' . $field['id']]['tmp_name']) ) ) )
-				{
-					delete_post_meta(self::$post->ID, $field['postCustomFieldName']);
+				// Make sure we are dealing with a custom field
+				if ( 'post_custom_field' != $field['type'] ) {
+					continue;
 				}
+
+				// if the field is specifically not unique and is not part of the unique array
+				if ( isset( $field['postCustomFieldUnique'] ) && false === $field['postCustomFieldUnique'] && (! in_array($field['inputType'], $always_unique) || ! empty($field['multipleFiles'])) ) {
+					continue;
+				}
+
+				if ( 'fileupload' == $field['inputType'] && empty( $_FILES['input_' . $field['id']]['tmp_name'] ) ) {
+					continue;
+				}
+
+				delete_post_meta(self::$post->ID, $field['postCustomFieldName']);
 			}
 
 			$post_data['ID']             = self::$post->ID;
 			$post_data['post_author']    = self::$post->post_author;
+			$post_data['post_status']    = self::$post->post_status;
 			$post_data['post_date']      = self::$post->post_date;
 			$post_data['post_date_gmt']  = self::$post->post_date_gmt;
 			$post_data['comment_status'] = self::$post->comment_status;
@@ -1006,7 +1121,6 @@ class gform_update_post
 	 *
 	 * @author  Jake Snyder
 	 * @date	22/08/13
-	 *
 	 * @return	void
 	 */
 	public static function current_user_can( $post_id=false )
@@ -1067,7 +1181,6 @@ class gform_update_post
 	 * @author  Kevin Miller
 	 * @author  Jake Snyder
 	 * @type	action
-	 *
 	 * @return	void
 	 */
 	public function gform_field_standard_settings( $position, $form_id )
@@ -1095,7 +1208,6 @@ class gform_update_post
 	 * @author  Kevin Miller
 	 * @author  Jake Snyder
 	 * @type	action
-	 *
 	 * @return	void
 	 */
 	public function gform_editor_js()
@@ -1138,7 +1250,6 @@ class gform_update_post
 	 * @author  Kevin Miller
 	 * @author  Jake Snyder
 	 * @type	filter
-	 *
 	 * @return	void
 	 */
 	public function gform_tooltips($tooltips)
