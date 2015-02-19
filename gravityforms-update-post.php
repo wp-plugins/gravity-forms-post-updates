@@ -1,7 +1,7 @@
 <?php
 /*
 Plugin Name: Gravity Forms: Post Updates
-Plugin URI: http://bitbucket.org/jupitercow/gravity-forms-update-post
+Plugin URI: https://wordpress.org/plugins/gravity-forms-post-updates/
 Description: Allow Gravity Forms to update post Content and the meta data associated with it. Based off the original version by Kevin Miller, this version removed delete functionality, fixed a few bugs, and adds support for file uploads.
 Version: 1.2.13
 Author: Jake Snyder
@@ -1164,7 +1164,7 @@ class gform_update_post
 			return false;
 		}
 
-		$capability = ( 'page' == $post_type ) ? 'edit_page' : 'edit_post';
+		$capability = ( 'page' == $post_type ) ? 'edit_pages' : 'edit_posts';
 
 		if ( current_user_can($capability, $post_id) ) return true;
 
