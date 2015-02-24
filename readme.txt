@@ -3,8 +3,8 @@ Contributors: jcow
 Donate link: https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=jacobsnyder%40gmail%2ecom&lc=US&item_name=Jacob%20Snyder&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donate_SM%2egif%3aNonHosted
 Tags: gravity forms, update posts, frontend, front end
 Requires at least: 3.6.1
-Tested up to: 4.0
-Stable tag: 1.2.14
+Tested up to: 4.1.1
+Stable tag: 1.2.16
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -12,11 +12,9 @@ Allows you to use Gravity Forms to update any post on the front end.
 
 == Description ==
 
+Requires PHP 5.2.
+
 Allows you to use Gravity Forms to update any post on the front end. If you use the "Gravity Forms + Custom Post Types", you can even update custom post types and use custom taxonomies.
-
-Also hosted on bitbucket: https://bitbucket.org/jupitercow/gravity-forms-update-post
-
-If you have a bug or feature request, submit it there: https://bitbucket.org/jupitercow/gravity-forms-update-post/issues?status=new&status=open
 
 This started as an update to the Gravity Forms Update Post plugin developed by p51labs here.
 It has evolved into a completely rewritten plugin that streamlines the system, adds some new support for more fields, and adds more interfaces and filters.
@@ -131,6 +129,19 @@ Image fields are only supported if they are the "Featured Image". Otherwise you 
 1. A form on the front end. This just demonstrates the image/file capabilities.
 
 == Changelog ==
+
+## 1.2.16 - 2015-02-18
+
+- Fixed a few non-static function declarations.
+- Updated image upload to hopefully shutdown when the image is moved.
+
+## 1.2.15 - 2015-02-18
+
+- Fixed field treatment to object from array for GF 1.9.x.
+
+## 1.2.14 - 2015-02-18
+
+- Fixing capabilites to plural.
 
 ## 1.2.13 - 2014-09-11
 
