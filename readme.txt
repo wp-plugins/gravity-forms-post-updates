@@ -276,5 +276,8 @@ Image fields are only supported if they are the "Featured Image". Otherwise you 
 
 == Upgrade Notice ==
 
+= 1.2.16 =
+Support for Gravity Forms 1.8.x is has been removed in favor of 1.9.x, please do not update if you are locked into GF 1.8.x.
+
 = 1.0 =
 This is the first version in the Wordpress repository.
