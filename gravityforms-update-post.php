@@ -3,7 +3,7 @@
 Plugin Name: Gravity Forms: Post Updates
 Plugin URI: https://wordpress.org/plugins/gravity-forms-post-updates/
 Description: Allow Gravity Forms to update post Content and the meta data associated with it. Based off the original version by Kevin Miller, this version removed delete functionality, fixed a few bugs, and adds support for file uploads.
-Version: 1.2.14
+Version: 1.2.15
 Author: Jake Snyder
 Author URI: http://Jupitercow.com/
 Contributer: p51labs
@@ -109,6 +109,30 @@ class gform_update_post
 	 */
 	public static function in_plugin_update_message( $plugin_data, $r )
 	{
+		// readme contents
+		$data       = file_get_contents( 'http://plugins.svn.wordpress.org/gravity-forms-post-updates/trunk/readme.txt?format=txt' );
+
+		// assuming you've got a Changelog section
+		// @example == Changelog ==
+		$changelog  = stristr( $data, '== Changelog ==' );
+
+		// assuming you've got a Screenshots section
+		// @example == Screenshots ==
+		$changelog  = stristr( $changelog, '== Screenshots ==', true );
+
+		// only return for the current & later versions
+		$curr_ver   = get_plugin_data('Version');
+
+		// assuming you use "= v" to prepend your version numbers
+		// @example = v0.2.1 =
+		$changelog  = stristr( $changelog, "= v{$curr_ver}" );
+
+		// uncomment the next line to var_export $var contents for dev:
+		# echo '<pre>'.var_export( $plugin_data, false ).'<br />'.var_export( $r, false ).'</pre>';
+
+		// echo stuff....
+		$output = 'whatever you want to do';
+		return print $output;
 	    echo 'Hello World';
 	}
 
