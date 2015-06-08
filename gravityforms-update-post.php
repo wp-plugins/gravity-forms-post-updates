@@ -8,9 +8,9 @@
  * Plugin Name:       Gravity Forms: Post Updates
  * Plugin URI:        https://wordpress.org/plugins/gravity-forms-post-updates/
  * Description:       Allow Gravity Forms to update post content and the meta data associated with a post.
- * Version:           1.2.18
- * Author:            jcow
- * Author URI:        http://jcow.com/
+ * Version:           1.2.20
+ * Author:            Jupitercow
+ * Author URI:        http://Jupitercow.com/
  * Contributer:       ekaj
  * Contributer:       jr00ck
  * Contributer:       p51labs
@@ -40,7 +40,7 @@ class gform_update_post
 	 * @since 	1.2
 	 * @var 	string
 	 */
-	const VERSION = '1.2.18';
+	const VERSION = '1.2.20';
 
 	/**
 	 * Settings
@@ -78,10 +78,10 @@ class gform_update_post
 		self::setup();
 
 		// actions
-		add_action( 'admin_init',                                 array(__CLASS__, 'admin_init') );
+		add_action( 'admin_init',                    array(__CLASS__, 'admin_init') );
 
 		// filters
-		add_filter( 'shortcode_atts_gravityforms',                array(__CLASS__, 'gf_shortcode_atts'), 10, 3 );
+		add_filter( 'shortcode_atts_gravityforms',   array(__CLASS__, 'gf_shortcode_atts'), 10, 3 );
 	}
 
 	/**
@@ -109,24 +109,53 @@ class gform_update_post
 	 */
 	public static function gf_shortcode_atts( $out, $pairs, $atts )
 	{
-		if ( isset($atts['update']) )
+		$require_link = ( isset($atts['require_link']) || in_array('require_link', $atts) ) ? true : false;
+
+		if ( $require_link )
 		{
-			if ( is_numeric($atts['update']) )
-			{
-				do_action( self::PREFIX . '/setup_form', array('form_id'=>$atts['id'], 'post_id'=>$atts['update']) );
+			$post_id = false;
+			$request_key = apply_filters(self::PREFIX . '/request_id', self::$settings['request_id']);
+			if (! empty($_REQUEST[$request_key]) ) {
+				$post_id = $_REQUEST[$request_key];
 			}
-			elseif ( 'false' == $atts['update'] )
-			{
-				remove_filter( 'gform_form_tag', array(__CLASS__, 'gform_form_tag') );
-				remove_filter( 'gform_pre_render_' . $atts['id'], array(__CLASS__, 'gform_pre_render') );
-				remove_filter( 'gform_pre_render', array(__CLASS__, 'gform_pre_render') );
-			}
-		}
-		elseif ( in_array('update', $atts) )
-		{
-			do_action( self::PREFIX . '/setup_form', array('form_id'=>$atts['id']) );
 		}
 
+		if (! $require_link || ($require_link && $post_id) )
+		{
+			if ( isset($atts['update']) )
+			{
+				if ( is_numeric($atts['update']) )
+				{
+					if (! $post_id ) {
+						$post_id = $atts['update'];
+					}
+					if ( self::current_user_can( $post_id ) ) {
+						do_action( self::PREFIX . '/setup_form', array('form_id'=>$atts['id'], 'post_id'=>$post_id) );
+					}
+				}
+				elseif ( 'false' == $atts['update'] )
+				{
+					remove_filter( 'gform_form_tag', array(__CLASS__, 'gform_form_tag') );
+					remove_filter( 'gform_pre_render_' . $atts['id'], array(__CLASS__, 'gform_pre_render') );
+					remove_filter( 'gform_pre_render', array(__CLASS__, 'gform_pre_render') );
+				}
+			}
+			elseif ( in_array('update', $atts) )
+			{
+				// Get the current post id, if none is provided
+				if (! $post_id ) {
+					$post_id = (! empty($GLOBALS['post']->ID) ) ? $GLOBALS['post']->ID : false;
+				}
+
+				if ( self::current_user_can( $post_id ) ) {
+					do_action( self::PREFIX . '/setup_form', array('form_id'=>$atts['id'], 'post_id'=>$post_id) );
+				}
+			}
+		}
+
+		if ( (isset($atts['update']) || in_array('update', $atts)) && ! self::current_user_can($post_id) ) {
+			$out['action'] = 0;
+		}
 		return $out;
 	}
 
@@ -171,7 +200,6 @@ class gform_update_post
 			// Adds a really basic shortcode to set the plugin in action
 			add_shortcode( self::PREFIX,                 array(__CLASS__, 'shortcode') );
 
-
 			// Add an action to set up the form
 			add_action( self::PREFIX . '/setup_form',    array(__CLASS__, 'setup_form') );
 
@@ -191,8 +219,9 @@ class gform_update_post
 
 			// Ajax file delete
 			add_action( 'wp_ajax_' . self::PREFIX . '_delete_upload', array(__CLASS__, 'ajax_delete_upload') );
-			if ( apply_filters( self::PREFIX . '/public_file_delete', true ) )
+			if ( apply_filters( self::PREFIX . '/public_file_delete', true ) ) {
 				add_action( 'wp_ajax_nopriv_' . self::PREFIX . '_delete_upload', array(__CLASS__, 'ajax_delete_upload') );
+			}
 
 			// Set up from url query vars and process submitted forms.
 			self::process_request();
@@ -266,11 +295,17 @@ class gform_update_post
 	public static function test_requirements()
 	{
 		// Look for GF
-		if (! class_exists('RGForms') )      return false;
+		if (! class_exists('RGForms') ) {
+			return false;
+		}
 		// Make sure the Form Model is there also
-		if (! class_exists('GFFormsModel') ) return false;
+		if (! class_exists('GFFormsModel') ) {
+			return false;
+		}
 		// Look for the GFCommon object
-		if (! class_exists('GFCommon') )     return false;
+		if (! class_exists('GFCommon') ) {
+			return false;
+		}
 
 		return true;
 	}
@@ -322,13 +357,13 @@ class gform_update_post
 	{
 		$post_id = false;
 		$request_key = apply_filters(self::PREFIX . '/request_id', self::$settings['request_id']);
-		if (! empty($_REQUEST[$request_key]) )
+		if (! empty($_REQUEST[$request_key]) ) {
 			$post_id = $_REQUEST[$request_key];
+		}
 
 		if ( $post_id && is_numeric($post_id) )
 		{
-			if ( 'POST' == $_SERVER['REQUEST_METHOD'] || (! empty($_REQUEST['nonce']) && wp_verify_nonce($_REQUEST['nonce'], self::$settings['nonce_update'])) )
-			{
+			if ( 'POST' == $_SERVER['REQUEST_METHOD'] || (! empty($_REQUEST['nonce']) && wp_verify_nonce($_REQUEST['nonce'], self::$settings['nonce_update'])) ) {
 				do_action( self::PREFIX . '/setup_form', $post_id );
 			}
 		}
@@ -367,8 +402,12 @@ class gform_update_post
 		foreach ( $taxonomies as $taxonomy )
 		{
 			$key = $taxonomy;
-			if ( 'post_tag' == $taxonomy ) $key = 'post_tags';
-			if ( 'category' == $taxonomy ) $key = 'post_category';
+			if ( 'post_tag' == $taxonomy ) {
+				$key = 'post_tags';
+			}
+			if ( 'category' == $taxonomy ) {
+				$key = 'post_category';
+			}
 			self::$post->taxonomies[$key] = wp_get_object_terms(self::$post->ID, $taxonomy);
 		}
 	}
@@ -385,12 +424,19 @@ class gform_update_post
 	 */
 	public static function get_edit_url( $post_id=false, $url=false )
 	{
-		if (! $post_id && ! empty($GLOBALS['post']) ) $post_id = $GLOBALS['post']->ID;
+		if (! $post_id && ! empty($GLOBALS['post']) ) {
+			$post_id = $GLOBALS['post']->ID;
+		}
 
 		// If the url parameter is a post_id, get the url to that post
-		if ( is_numeric($url) ) $url = get_permalink($url);
+		if ( is_numeric($url) ) {
+			$url = get_permalink($url);
+		}
+
 		// If no url, use the post_id to get the url to the post being edited
-		if (! $url ) $url = get_permalink($post_id);
+		if (! $url ) {
+			$url = get_permalink($post_id);
+		}
 
 		$request_id = apply_filters(self::PREFIX . '/request_id', self::$settings['request_id']);
 		return add_query_arg( array($request_id => $post_id, 'nonce' => wp_create_nonce(self::$settings['nonce_update'])), $url );
@@ -404,7 +450,7 @@ class gform_update_post
 	 * Arguments:
 	 *	post_id (int) is the id of the post you want to edit
 	 *	url (string|int) is either the full url of the page where your edit form resides, or an id for the page where the edit form resides
-	 *	test (string) is the link text
+	 *	text (string) is the link text
 	 *	title (string) is the title attribute of the anchor tag
 	 *
 	 * @author  ekaj
@@ -426,12 +472,17 @@ class gform_update_post
 		$output = '';
 
 		// Get the current post id, if none is provided
-		if (! $args['post_id'] && ! empty($GLOBALS['post']->ID) ) $args['post_id'] = $GLOBALS['post']->ID;
+		if (! $args['post_id'] && ! empty($GLOBALS['post']->ID) ) {
+			$args['post_id'] = $GLOBALS['post']->ID;
+		}
 
-		if ( self::current_user_can( $args['post_id'] ) )
+		$request_key = apply_filters(self::PREFIX . '/request_id', self::$settings['request_id']);
+		if ( self::current_user_can( $args['post_id'] ) && empty($_REQUEST[$request_key]) )
 		{
 			// Add the link text to the title if no link title is specified
-			if (! $args['title'] ) $args['title'] = $args['text'];
+			if (! $args['title'] ) {
+				$args['title'] = $args['text'];
+			}
 			$output .= '<a class="' . esc_attr(self::PREFIX) . '_link' . ($args['class'] ? ' ' . esc_attr($args['class']) : '') . '" href="' . esc_attr( apply_filters(self::PREFIX.'/edit_url', $args['post_id'], $args['url']) ) . '" title="' . esc_attr($args['title']) . '">' . esc_html($args['text']) . '</a>';
 		}
 
@@ -442,12 +493,6 @@ class gform_update_post
 	 * Build Edit Link
 	 *
 	 * Create anchor link with the edit URI. Uses self::edit_url to create the URI.
-	 *
-	 * Arguments:
-	 *	post_id (int) is the id of the post you want to edit
-	 *	url (string|int) is either the full url of the page where your edit form resides, or an id for the page where the edit form resides
-	 *	test (string) is the link text
-	 *	title (string) is the title attribute of the anchor tag
 	 *
 	 * @author  ekaj
 	 * @param	array|string $args The arguments to use when creating a link
@@ -524,7 +569,9 @@ class gform_update_post
 			return false;
 		}
 
-		if (! $post_id && ! empty($GLOBALS['post']->ID) ) $post_id = $GLOBALS['post']->ID;
+		if (! $post_id && ! empty($GLOBALS['post']->ID) ) {
+			$post_id = $GLOBALS['post']->ID;
+		}
 
 		self::get_post_object($post_id);
 
@@ -539,13 +586,10 @@ class gform_update_post
 			// Add the request_id to the form as a hidden field. This triggers our post data addition that will update the post
 			add_filter( 'gform_form_tag',          array(__CLASS__, 'gform_form_tag'), 50, 2 );
 
-			if ( $form_id )
-			{
+			if ( $form_id ) {
 				// Add the existing information to the form
 				add_filter( 'gform_pre_render_' . $form_id,        array(__CLASS__, 'gform_pre_render') );
-			}
-			else
-			{
+			} else {
 				// Add the existing information to the form
 				add_filter( 'gform_pre_render',        array(__CLASS__, 'gform_pre_render') );
 			}
@@ -580,23 +624,19 @@ class gform_update_post
 		$options = array_merge($options, $_POST);
 
 		// test options
-		if (! $options['post_id'] || ! $options['form_id'] || (! $options['featured'] && ! $options['meta']) ) die('Missing information');
+		if (! $options['post_id'] || ! $options['form_id'] || (! $options['featured'] && ! $options['meta']) ) { die('Missing information'); }
 
 		// verify nonce
-		if (! wp_verify_nonce($options['nonce'], self::$settings['nonce_delete']) ) die('Are you sure?');
+		if (! wp_verify_nonce($options['nonce'], self::$settings['nonce_delete']) ) { die('Are you sure?'); }
 
-		if ( $options['featured'] )
-		{
+		if ( $options['featured'] ) {
 			// Delete the attachment, if it works, remove the featured meta from post
-			if ( wp_delete_attachment( $options['featured'] ) )
+			if ( wp_delete_attachment( $options['featured'] ) ) {
 				delete_post_meta( $options['post_id'], '_thumbnail_id' );
-		}
-		elseif ( $options['meta'] )
-		{
+			}
+		} elseif ( $options['meta'] ) {
 			self::delete_upload( $options );
-		}
-		else
-		{
+		} else {
 			die(0);
 		}
 
@@ -611,8 +651,8 @@ class gform_update_post
 	 */
 	public static function delete_upload( $options )
 	{
-		$file     = ( $options['file'] ) ? $options['file'] : get_post_meta( $options['post_id'], $options['meta'], true );
-		$filetype = wp_check_filetype( $file );
+		$file         = ( $options['file'] ) ? $options['file'] : get_post_meta( $options['post_id'], $options['meta'], true );
+		$filetype     = wp_check_filetype( $file );
 
 		// get the thumbnail name
 		$path_to_file = GFFormsModel::get_upload_path($options['form_id']);
@@ -692,10 +732,8 @@ class gform_update_post
 			{
 				$content .= '<a class="' . esc_attr(self::PREFIX) . '_addmore_link" href="#' . __("requires_javascript", self::PREFIX) . '" title="' . __("Add more uploads", self::PREFIX) . '">' . __("Add more", self::PREFIX) . '</a>';
 				$file_array = explode(', ', $field['defaultValue']);
-				if ( $file_array )
-				{
-					foreach ( $file_array as $file )
-					{
+				if ( $file_array ) {
+					foreach ( $file_array as $file ) {
 						$content .= self::create_uploaded_file( $file, $field, $form_id );
 					}
 				}
@@ -758,15 +796,16 @@ class gform_update_post
 							$thumbname = $image_editor->generate_filename( 'thumb' );
 							// Test if thumbnail exists
 							$thumb_exists = file_exists($thumbname);
-							if ( $thumb_exists ) $thumbsize = getimagesize( $thumbname );
+							if ( $thumb_exists ) {
+								$thumbsize = getimagesize( $thumbname );
+							}
 
 							// If no thumbnail, or the size has changed, generate a new one
 							if (! $thumb_exists || $thumbsize[0] != $width || $thumbsize[1] != $height )
 							{
 								$image_editor->resize( $width, $height, $crop );
 								$resized = $image_editor->save($thumbname);
-								if (! is_wp_error($resized) )
-								{
+								if (! is_wp_error($resized) ) {
 									$pathinfo  = pathinfo($file);
 									$image_url = $pathinfo['dirname'] . '/' . $resized['file'];
 								}
@@ -783,7 +822,9 @@ class gform_update_post
 			}
 
 			// If there is no thumbnail at this point, use the file itself
-			if (! $image_url ) $image_url = $file;
+			if (! $image_url ) {
+				$image_url = $file;
+			}
 		}
 		// Not a file then get a mimetype icon from WP
 		else
@@ -880,8 +921,7 @@ class gform_update_post
 					$value = array();
 					if ( self::$post->taxonomies[$field['populateTaxonomy']] )
 					{
-						foreach ( self::$post->taxonomies[$field['populateTaxonomy']] as $object )
-						{
+						foreach ( self::$post->taxonomies[$field['populateTaxonomy']] as $object ) {
 							$value[] = $object->term_id;
 						}
 					}
@@ -1054,10 +1094,13 @@ class gform_update_post
 			foreach( $form['fields'] as &$field )
 			{
 				$taxonomy = false;
-				if ( array_key_exists('populateTaxonomy', $field) )
+				if ( array_key_exists('populateTaxonomy', $field) ) {
 					$taxonomy = $field['populateTaxonomy'];
+				}
 
-				if ( $taxonomy ) wp_set_object_terms( $entry['post_id'], NULL, $taxonomy );
+				if ( $taxonomy ) {
+					wp_set_object_terms( $entry['post_id'], NULL, $taxonomy );
+				}
 			}
 		}
 	}
@@ -1101,6 +1144,12 @@ class gform_update_post
 			}
 
 			$post_data['ID']             = self::$post->ID;
+			if (! $post_data['post_title'] ) {
+				$post_data['post_title']   = self::$post->post_title;
+			}
+			if (! $post_data['post_content'] ) {
+				$post_data['post_content'] = self::$post->post_content;
+			}
 			$post_data['post_author']    = self::$post->post_author;
 			$post_data['post_status']    = self::$post->post_status;
 			$post_data['post_date']      = self::$post->post_date;
@@ -1128,8 +1177,7 @@ class gform_update_post
 	{
 		if ( ('post_image' == $field['type'] || 'fileupload' == $field['inputType']) && $field['isRequired'] && ! $result['is_valid'] ) // || 'post_image' == $field['type']
 		{
-			if ( ('post_image' == $field['type'] && has_post_thumbnail(self::$post->ID)) || ('fileupload' == $field['inputType'] && get_post_meta( self::$post->ID, $field['postCustomFieldName'], true )) )
-			{
+			if ( ('post_image' == $field['type'] && has_post_thumbnail(self::$post->ID)) || ('fileupload' == $field['inputType'] && get_post_meta( self::$post->ID, $field['postCustomFieldName'], true )) ) {
 				$result['is_valid'] = true;
 			}
 		}
@@ -1162,7 +1210,9 @@ class gform_update_post
 			{
 				foreach ( $public_edit as $cap )
 				{
-					if ( current_user_can($public_edit) ) return true;
+					if ( current_user_can($public_edit) ) {
+						return true;
+					}
 				}
 				return false;
 			}
@@ -1172,23 +1222,20 @@ class gform_update_post
 			}
 		}
 
-		if ( $post_id && is_numeric($post_id) )
-		{
+		if ( $post_id && is_numeric($post_id) ) {
 			$post_type = get_post_type( $post_id );
-		}
-		elseif ( is_object(self::$post) )
-		{
+		} elseif ( is_object(self::$post) ) {
 			$post_id   = self::$post->ID;
 			$post_type = self::$post->post_type;
-		}
-		else
-		{
+		} else {
 			return false;
 		}
 
 		$capability = ( 'page' == $post_type ) ? 'edit_pages' : 'edit_posts';
 
-		if ( current_user_can($capability, $post_id) ) return true;
+		if ( current_user_can($capability, $post_id) ) {
+			return true;
+		}
 
 		return false;
 	}
@@ -1238,8 +1285,7 @@ class gform_update_post
 		<script type="text/javascript">
 			var fieldTypes   = ['post_custom_field'];
 			var excludeTypes = ['checkbox','multiselect','list','fileupload'];
-			for ( var i=0; i<fieldTypes.length; i++ )
-			{
+			for ( var i=0; i<fieldTypes.length; i++ ) {
 				fieldSettings[fieldTypes[i]] += ', .post_custom_field_unique';
 			}
 
@@ -1249,8 +1295,7 @@ class gform_update_post
 				if ( -1 === jQuery.inArray(field['inputType'], excludeTypes) )
 				{
 					//console.log('started');
-					if (! field.hasOwnProperty('postCustomFieldUnique') )
-					{
+					if (! field.hasOwnProperty('postCustomFieldUnique') ) {
 						field['postCustomFieldUnique'] = true;
 					}
 					$input.attr('checked', field['postCustomFieldUnique'] == true);

@@ -4,7 +4,7 @@ Donate link: https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=jacob
 Tags: gravity forms, update posts, frontend, front end
 Requires at least: 3.6.1
 Tested up to: 4.1.1
-Stable tag: 1.2.18
+Stable tag: 1.2.20
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -115,6 +115,15 @@ It usually means you are running PHP 5.2.x on your server. I know WordPress supp
 
 
 == Changelog ==
+
+= 1.2.20 - 2015-06-07 =
+
+- Updated to hide update forms when user can't update.
+- Added "require_link" attribute to shortcode to require an edit link clicked on to show form.
+
+= 1.2.19 - 2015-06-07 =
+
+- When no title field is included, it no longer erases the title, same with content.
 
 = 1.2.18 - 2015-03-04 =
 
