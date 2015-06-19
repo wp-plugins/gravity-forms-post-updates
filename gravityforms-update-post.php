@@ -1237,7 +1237,7 @@ class gform_update_post
 			return false;
 		}
 
-		$capability = ( 'page' == $post_type ) ? 'edit_pages' : 'edit_posts';
+		$capability = ( 'page' == $post_type ) ? 'edit_page' : 'edit_post';
 
 		if ( current_user_can($capability, $post_id) ) {
 			return true;
