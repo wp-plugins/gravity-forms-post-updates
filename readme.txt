@@ -4,7 +4,7 @@ Donate link: https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=jacob
 Tags: gravity forms, update posts, frontend, front end
 Requires at least: 3.6.1
 Tested up to: 4.2.2
-Stable tag: 1.2.22
+Stable tag: 1.2.23
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -115,6 +115,10 @@ It usually means you are running PHP 5.2.x on your server. I know WordPress supp
 
 
 == Changelog ==
+
+= 1.2.23 - 2015-07-02 =
+
+- Fixed undefined index: conditional.
 
 = 1.2.22 - 2015-06-18 =
 
